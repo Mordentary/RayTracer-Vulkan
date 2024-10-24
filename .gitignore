@@ -1,0 +1,86 @@
+# Build directories
+/build/
+/bin/
+/out/
+
+# Visual Studio files
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.suo
+*.user
+*.userosscache
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.opendb
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+*.cmake
+!CMakeLists.txt
+
+# Compiled files
+*.obj
+*.exe
+*.dll
+*.lib
+*.pdb
+*.ilk
+*.exp
+*.iobj
+*.ipdb
+
+# Shader compiled files
+*.spv
+
+# IDE specific
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Third party libraries
+/third_party/*
+# But keep the following if you have specific third-party files to track
+!/third_party/CMakeLists.txt
+!/third_party/README.md
+
+# Specific third-party libraries that are typically large or frequently updated
+/third_party/VulkanSDK/
+/third_party/glm/
+/third_party/SDL2/
+/third_party/imgui/
+/third_party/stb/
+/third_party/vma/
+/third_party/fastgltf/
+/third_party/fmt/
+
+# Project specific
+imgui.ini
+*.log
+*.tlog
+Debug/
+Release/
+x64/
+x86/
+
+# Vulkan validation layers
+vk_layer_settings.txt
+
+# Asset files (uncomment if needed)
+# *.fbx
+# *.obj
+# *.gltf
+# *.glb
+# *.png
+# *.jpg
+# *.jpeg
