@@ -1,6 +1,6 @@
 ﻿#include "vk_pipelines.h"
 
-namespace Engine {
+namespace SE {
     PipelineBuilder& PipelineBuilder::setShaders(VkShaderModule vertexShader, VkShaderModule fragmentShader) {
         m_Config.shaderStages.clear();
         m_Config.shaderStages.push_back(vkInit::pipelineShaderStageCreateInfo(VK_SHADER_STAGE_VERTEX_BIT, vertexShader));

@@ -1,7 +1,7 @@
 #include "vk_images.h"
 #include "vk_initializers.h"
 
-namespace Engine
+namespace SE
 {
 	void vkUtil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
 	{

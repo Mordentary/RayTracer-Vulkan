@@ -4,7 +4,7 @@
 #include <deque>
 #include <span>
 
-namespace Engine
+namespace SE
 {
 	struct DescriptorLayoutBuilder {
 		std::vector<VkDescriptorSetLayoutBinding> m_Bindings;

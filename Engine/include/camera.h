@@ -4,7 +4,7 @@
 #include <glm/gtc/quaternion.hpp>
 #include <SDL_events.h>
 
-namespace Engine {
+namespace SE {
 
 class Camera {
 public:
@@ -73,4 +73,4 @@ private:
     glm::mat4 m_ViewProjection{1.0f};
 };
 
-} // namespace Engine
+} // namespace SE

@@ -1,6 +1,6 @@
 ﻿#include "vk_initializers.h"
 
-namespace Engine 
+namespace SE 
 {
 	VkCommandPoolCreateInfo vkInit::commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags)
 	{

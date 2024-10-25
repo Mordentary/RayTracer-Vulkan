@@ -3,7 +3,7 @@
 #include <vector>
 #include <optional>
 
-namespace Engine
+namespace SE
 {
 	class PipelineBuilder {
 	public:

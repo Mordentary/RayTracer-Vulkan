@@ -1,7 +1,7 @@
 #pragma once
 
 #include<memory>
-namespace Engine {
+namespace SE {
 	//Error checking
 #define VK_CHECK(x)                                                     \
     do {                                                                \

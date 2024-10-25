@@ -8,9 +8,9 @@
 
 
 
-namespace Engine
+namespace SE
 {
-	class VulkanEngine;
+	class Engine;
 	struct DescriptorAllocator;
 
 	struct GLTFMaterial
@@ -45,7 +45,7 @@ namespace Engine
 		std::vector<VkSampler> samplers;
 		DescriptorAllocator descriptorPool;
 		AllocatedBuffer materialDataBuffer;
-		VulkanEngine* creator;
+		Engine* creator;
 
 		~LoadedGLTF() { clearAll(); };
 
@@ -54,6 +54,6 @@ namespace Engine
 	private:
 		void clearAll();
 	};
-	std::optional<Shared<LoadedGLTF>> loadGltfMeshes(VulkanEngine* engine, std::filesystem::path filePath);
-	std::optional<AllocatedImage> loadImage(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image);
+	std::optional<Shared<LoadedGLTF>> loadGltfMeshes(Engine* engine, std::filesystem::path filePath);
+	std::optional<AllocatedImage> loadImage(Engine* engine, fastgltf::Asset& asset, fastgltf::Image& image);
 }

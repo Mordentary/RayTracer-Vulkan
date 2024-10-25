@@ -1,7 +1,7 @@
 ﻿#pragma once
 #include "vk_types.h"
 
-namespace Engine
+namespace SE
 {
 	namespace vkInit {
 

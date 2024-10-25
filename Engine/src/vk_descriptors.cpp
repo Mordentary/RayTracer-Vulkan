@@ -2,7 +2,7 @@
 #include "vk_initializers.h"
 
 
-namespace Engine
+namespace SE
 {
 	void DescriptorLayoutBuilder::addBinding(uint32_t binding, VkDescriptorType type)
 	{

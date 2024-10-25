@@ -5,7 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm\gtx\quaternion.hpp>
 
-namespace Engine {
+namespace SE {
 
 	namespace {
 		constexpr float PITCH_LIMIT = 89.0f;
@@ -162,4 +162,4 @@ namespace Engine {
 		updateProjectionMatrix();
 	}
 
-} // namespace Engine
+} // namespace SE

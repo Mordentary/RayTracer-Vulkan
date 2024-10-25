@@ -14,7 +14,7 @@
 #include <VkBootstrap.h>
 #include <vk_mem_alloc.h>
 
-namespace Engine
+namespace SE
 {
 #ifdef _DEBUG
 	constexpr bool bUseValidationLayers = true;
@@ -22,7 +22,7 @@ namespace Engine
 	constexpr bool bUseValidationLayers = false;
 #endif
 
-	VulkanEngine* loadedEngine = nullptr;
+	Engine* loadedEngine = nullptr;
 
 	// Debug callback function
 	VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
@@ -122,10 +122,10 @@ namespace Engine
 	}
 
 	// Singleton instance retrieval
-	VulkanEngine& VulkanEngine::GetInstance() { return *loadedEngine; }
+	Engine& Engine::GetInstance() { return *loadedEngine; }
 
 	// Initialization
-	void VulkanEngine::init()
+	void Engine::init()
 	{
 		// Only one engine initialization is allowed with the application.
 		assert(loadedEngine == nullptr);
@@ -164,7 +164,7 @@ namespace Engine
 	}
 
 	// Cleanup
-	void VulkanEngine::cleanup()
+	void Engine::cleanup()
 	{
 		if (m_IsInitialized)
 		{
@@ -198,7 +198,7 @@ namespace Engine
 	}
 
 	// Frame Drawing
-	void VulkanEngine::drawFrame()
+	void Engine::drawFrame()
 	{
 		VK_CHECK(vkWaitForFences(m_Device, 1, &getCurrentFrame().renderFence, VK_TRUE, 1000000000));
 		VK_CHECK(vkResetFences(m_Device, 1, &getCurrentFrame().renderFence));
@@ -275,7 +275,7 @@ namespace Engine
 	}
 
 	// Main Loop
-	void VulkanEngine::run()
+	void Engine::run()
 	{
 		bool bQuit = false;
 		SDL_Event e;
@@ -346,7 +346,7 @@ namespace Engine
 		}
 	}
 
-	void VulkanEngine::updateScene()
+	void Engine::updateScene()
 	{
 		m_MainDrawContext.opaqueObjects.clear();
 
@@ -363,7 +363,7 @@ namespace Engine
 	}
 
 	// Immediate Submit Helper
-	void VulkanEngine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function)
+	void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function)
 	{
 		VK_CHECK(vkResetFences(m_Device, 1, &m_ImguiFence));
 		VK_CHECK(vkResetCommandBuffer(m_ImguiCommandBuffer, 0));
@@ -388,7 +388,7 @@ namespace Engine
 	}
 
 	// Resize Swapchain
-	void VulkanEngine::resizeSwapchain()
+	void Engine::resizeSwapchain()
 	{
 		vkDeviceWaitIdle(m_Device);
 		destroySwapchain();
@@ -404,7 +404,7 @@ namespace Engine
 	}
 
 	// Initialize Default Data
-	void VulkanEngine::initDefaultData()
+	void Engine::initDefaultData()
 	{
 		uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 		m_WhiteImage = createImage((void*)&white, VkExtent3D{ 1, 1, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
@@ -480,7 +480,7 @@ namespace Engine
 	}
 
 	// Initialize Vulkan
-	void VulkanEngine::initVulkan()
+	void Engine::initVulkan()
 	{
 		vkb::InstanceBuilder builder;
 
@@ -594,7 +594,7 @@ namespace Engine
 	}
 
 	// Initialize Swapchain
-	void VulkanEngine::initSwapchain()
+	void Engine::initSwapchain()
 	{
 		createSwapchain(m_WindowExtent.width, m_WindowExtent.height);
 
@@ -664,7 +664,7 @@ namespace Engine
 	}
 
 	// Initialize Command Buffers
-	void VulkanEngine::initCommandBuffers()
+	void Engine::initCommandBuffers()
 	{
 		VkCommandPoolCreateInfo commandPoolInfo = vkInit::commandPoolCreateInfo(m_GraphicsQueueFamilyIndex, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
@@ -689,7 +689,7 @@ namespace Engine
 	}
 
 	// Initialize Descriptors
-	void VulkanEngine::initDescriptors()
+	void Engine::initDescriptors()
 	{
 		// Create a descriptor pool that will hold 10 sets with 1 image each
 		std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
@@ -744,7 +744,7 @@ namespace Engine
 	}
 
 	// Initialize Synchronization Structures
-	void VulkanEngine::initSyncStructures()
+	void Engine::initSyncStructures()
 	{
 		VkFenceCreateInfo fenceCreateInfo = vkInit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 		VkSemaphoreCreateInfo semaphoreCreateInfo = vkInit::semaphoreCreateInfo();
@@ -759,7 +759,7 @@ namespace Engine
 	}
 
 	// draw Background
-	void VulkanEngine::drawBackground(VkCommandBuffer cmd)
+	void Engine::drawBackground(VkCommandBuffer cmd)
 	{
 		ComputeEffect& effect = m_BackgroundEffects[m_ActiveBackgroundEffect];
 
@@ -778,7 +778,7 @@ namespace Engine
 	}
 
 	// draw Geometry
-	void VulkanEngine::drawGeometry(VkCommandBuffer cmd)
+	void Engine::drawGeometry(VkCommandBuffer cmd)
 	{
 		// VkClearValue clearVal{ .color {0,0,0,0} };
 		VkRenderingAttachmentInfo colorAttach = vkInit::attachmentInfo(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -824,17 +824,17 @@ namespace Engine
 		writer.writeBuffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		writer.updateSet(m_Device, globalDescriptor);
 
-		for (const RenderableObject& draw : m_MainDrawContext.opaqueObjects) {
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.materialInstance->pipeline->pipeline);
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.materialInstance->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.materialInstance->pipeline->layout, 1, 1, &draw.materialInstance->descriptorSet, 0, nullptr);
+		for (const DrawCommand& draw : m_MainDrawContext.opaqueObjects) {
+			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->descriptorSet, 0, nullptr);
 
 			vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
 			GPUDrawPushConstants pushConstants;
 			pushConstants.vertexBufferAddress = draw.vertexBufferAddress;
-			pushConstants.worldMatrix = draw.transformMatrix;
-			vkCmdPushConstants(cmd, draw.materialInstance->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+			pushConstants.worldMatrix = draw.transform;
+			vkCmdPushConstants(cmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
 			vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
 		}
@@ -842,14 +842,14 @@ namespace Engine
 	}
 
 	// Initialize Pipelines
-	void VulkanEngine::initPipelines()
+	void Engine::initPipelines()
 	{
 		initBackgroundPipelines();
 		m_MetallicRoughnessMaterial.buildPipeline(this);
 	}
 
 	// Initialize Background Pipelines
-	void VulkanEngine::initBackgroundPipelines()
+	void Engine::initBackgroundPipelines()
 	{
 		VkPipelineLayoutCreateInfo computeLayout{};
 		computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -929,7 +929,7 @@ namespace Engine
 	}
 
 	// Initialize ImGui
-	void VulkanEngine::initImgui()
+	void Engine::initImgui()
 	{
 		// 1: Create descriptor pool for IMGUI
 		VkDescriptorPoolSize pool_sizes[] = {
@@ -994,7 +994,7 @@ namespace Engine
 	}
 
 	// draw ImGui
-	void VulkanEngine::drawImgui(VkCommandBuffer cmd, VkImageView targetImageView)
+	void Engine::drawImgui(VkCommandBuffer cmd, VkImageView targetImageView)
 	{
 		VkRenderingAttachmentInfo colorAttachment = vkInit::attachmentInfo(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
@@ -1008,7 +1008,7 @@ namespace Engine
 	}
 
 	// Create Image
-	AllocatedImage VulkanEngine::createImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
+	AllocatedImage Engine::createImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 	{
 		AllocatedImage newImage;
 		newImage.format = format;
@@ -1043,7 +1043,7 @@ namespace Engine
 	}
 
 	// Create Image with Data
-	AllocatedImage VulkanEngine::createImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
+	AllocatedImage Engine::createImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
 	{
 		size_t data_size = size.depth * size.width * size.height * 4;
 		AllocatedBuffer uploadBuffer = createBuffer(data_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
@@ -1080,14 +1080,14 @@ namespace Engine
 	}
 
 	// Destroy Image
-	void VulkanEngine::destroyImage(const AllocatedImage& img)
+	void Engine::destroyImage(const AllocatedImage& img)
 	{
 		vkDestroyImageView(m_Device, img.imageView, nullptr);
 		vmaDestroyImage(m_Allocator, img.image, img.allocation);
 	}
 
 	// Upload Mesh
-	GPUMeshBuffers VulkanEngine::uploadMesh(const std::span<uint32_t>& indices, const std::span<Vertex>& vertices)
+	GPUMeshBuffers Engine::uploadMesh(const std::span<uint32_t>& indices, const std::span<Vertex>& vertices)
 	{
 		const size_t vertexBufferSize = vertices.size() * sizeof(Vertex);
 		const size_t indexBufferSize = indices.size() * sizeof(uint32_t);
@@ -1139,7 +1139,7 @@ namespace Engine
 	}
 
 	// Create Buffer
-	AllocatedBuffer VulkanEngine::createBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
+	AllocatedBuffer Engine::createBuffer(size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage)
 	{
 		VkBufferCreateInfo bufferInfo = { .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 		bufferInfo.pNext = nullptr;
@@ -1159,13 +1159,13 @@ namespace Engine
 	}
 
 	// Destroy Buffer
-	void VulkanEngine::destroyBuffer(const AllocatedBuffer& buffer)
+	void Engine::destroyBuffer(const AllocatedBuffer& buffer)
 	{
 		vmaDestroyBuffer(m_Allocator, buffer.buffer, buffer.allocation);
 	}
 
 	// Create Swapchain
-	void VulkanEngine::createSwapchain(uint32_t width, uint32_t height)
+	void Engine::createSwapchain(uint32_t width, uint32_t height)
 	{
 		vkb::SwapchainBuilder swapchainBuilder{ m_PhysicalDevice, m_Device, m_Surface };
 		m_SwapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
@@ -1185,7 +1185,7 @@ namespace Engine
 	}
 
 	// Destroy Swapchain
-	void VulkanEngine::destroySwapchain()
+	void Engine::destroySwapchain()
 	{
 		vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
 
@@ -1196,7 +1196,7 @@ namespace Engine
 	}
 
 	// Build Pipeline for Metallic-Roughness Material
-	void MetallicRoughnessMaterial::buildPipeline(VulkanEngine* engine)
+	void MetallicRoughnessMaterial::buildPipeline(Engine* engine)
 	{
 		VkShaderModule meshFragShader;
 		if (!vkUtil::loadShaderModule("shaders/mesh.frag.spv", engine->m_Device, &meshFragShader)) {
@@ -1292,13 +1292,13 @@ namespace Engine
 		glm::mat4 nodeMatrix = parentTransform * worldTransform;
 
 		for (auto& s : meshAsset->surfaces) {
-			RenderableObject def;
+			DrawCommand def;
 			def.indexCount = s.count;
 			def.firstIndex = s.startIndex;
 			def.indexBuffer = meshAsset->meshBuffers.indexBuffer.buffer;
-			def.materialInstance = &s.material->data;
+			def.material = &s.material->data;
 
-			def.transformMatrix = nodeMatrix;
+			def.transform = nodeMatrix;
 			def.vertexBufferAddress = meshAsset->meshBuffers.vertexBufferAddress;
 
 			context.opaqueObjects.push_back(def);

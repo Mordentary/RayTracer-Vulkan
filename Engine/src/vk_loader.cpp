@@ -11,7 +11,7 @@
 #include <glm/gtx/quaternion.hpp>
 #include <fastgltf/glm_element_traits.hpp>
 
-namespace Engine
+namespace SE
 {
 	namespace
 	{
@@ -48,7 +48,7 @@ namespace Engine
 		}
 	}
 
-	std::optional<AllocatedImage> loadImage(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image)
+	std::optional<AllocatedImage> loadImage(Engine* engine, fastgltf::Asset& asset, fastgltf::Image& image)
 	{
 		AllocatedImage newImage{};
 
@@ -136,7 +136,7 @@ namespace Engine
 		}
 	}
 
-	std::optional<Shared<LoadedGLTF>> loadGltfMeshes(VulkanEngine* engine, std::filesystem::path filePath)
+	std::optional<Shared<LoadedGLTF>> loadGltfMeshes(Engine* engine, std::filesystem::path filePath)
 	{
 		//fmt::print("Loading GLTF: {}", filePath);
 

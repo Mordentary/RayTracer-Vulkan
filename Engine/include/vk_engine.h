@@ -25,13 +25,13 @@
 #include <filesystem>
 
 
-namespace Engine
+namespace SE
 {
 	// Forward declarations
 	struct MeshAsset;
 	struct LoadedGLTF;
 
-	class VulkanEngine;
+	class Engine;
 	// Resource cleanup queue
 	struct ResourceCleanupQueue
 	{
@@ -51,20 +51,20 @@ namespace Engine
 	};
 
 	// Renderable object structure
-	struct RenderableObject {
+	struct DrawCommand {
 		uint32_t indexCount;
 		uint32_t firstIndex;
 		VkBuffer indexBuffer;
 
-		MaterialInstance* materialInstance;
+		MaterialInstance* material;
 
-		glm::mat4 transformMatrix;
+		glm::mat4 transform;
 		VkDeviceAddress vertexBufferAddress;
 	};
 
 	// Drawing context
 	struct DrawingContext {
-		std::vector<RenderableObject> opaqueObjects;
+		std::vector<DrawCommand> opaqueObjects;
 	};
 
 	// Mesh node inheriting from SceneNode
@@ -127,7 +127,7 @@ namespace Engine
 
 		DescriptorWriter descriptorWriter;
 
-		void buildPipeline(VulkanEngine* engine);
+		void buildPipeline(Engine* engine);
 		void clearResources(VkDevice device);
 
 		MaterialInstance createMaterial(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocator& allocator);
@@ -137,13 +137,13 @@ namespace Engine
 	constexpr unsigned int MAX_FRAMES_IN_FLIGHT = 2;
 
 	// Vulkan engine class
-	class VulkanEngine {
+	class Engine {
 		friend MetallicRoughnessMaterial;
-		friend std::optional<Shared<LoadedGLTF>> loadGltfMeshes(VulkanEngine* engine, std::filesystem::path filePath);
-		friend std::optional<AllocatedImage> loadImage(VulkanEngine* engine, fastgltf::Asset& asset, fastgltf::Image& image);
+		friend std::optional<Shared<LoadedGLTF>> loadGltfMeshes(Engine* engine, std::filesystem::path filePath);
+		friend std::optional<AllocatedImage> loadImage(Engine* engine, fastgltf::Asset& asset, fastgltf::Image& image);
 		friend LoadedGLTF;
 	public:
-		static VulkanEngine& GetInstance();
+		static Engine& GetInstance();
 
 		SINGULARITY_API void init();
 		SINGULARITY_API void run();

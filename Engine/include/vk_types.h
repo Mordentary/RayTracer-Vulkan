@@ -7,7 +7,7 @@
 #include <memory>
 #include <vector>
 
-namespace Engine
+namespace SE
 {
 	// Allocated image structure
 	struct AllocatedImage {
