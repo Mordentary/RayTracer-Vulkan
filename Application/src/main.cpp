@@ -3,14 +3,11 @@
 
 int main(int argc, char* argv[])
 {
-	SE::Engine engine;
+	SE::Engine& engine = SE::Engine::getInstance();
 
-	engine.init();	
-	
-	engine.run();	
+	engine.run();
 
-	engine.cleanup();	
-
+	engine.cleanup();
 	return 0;
 }
 //< main

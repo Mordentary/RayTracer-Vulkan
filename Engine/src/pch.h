@@ -35,6 +35,7 @@
 #include <vk_initializers.h>
 #include <vk_images.h>
 #include <engine_core.h>
+#include <PerformaceTimer.hpp>
 
 // Vulkan Memory Allocator
 #include <vk_mem_alloc.h>

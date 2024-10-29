@@ -3,27 +3,244 @@
 
 namespace SE
 {
+	//void vkUtil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
+	//{
+	//    VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+	//    imageBarrier.pNext = nullptr;
+	//
+	//    // Set up transition details based on layouts
+	//    switch (currentLayout) {
+	//    case VK_IMAGE_LAYOUT_UNDEFINED:
+	//        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+	//        imageBarrier.srcAccessMask = 0;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+	//        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	//        imageBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+	//        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	//        imageBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+	//        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+	//        imageBarrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | 
+	//                                   VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+	//        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | 
+	//                                   VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+	//        imageBarrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | 
+	//                                    VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+	//        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+	//        imageBarrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+	//        imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+	//        imageBarrier.srcAccessMask = 0;
+	//        break;
+	//    default:
+	//	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+	//        imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+	//        break;
+	//    }
+	//
+	//    switch (newLayout) {
+	//    case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+	//        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+	//        imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+	//        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT | VK_PIPELINE_STAGE_2_BLIT_BIT;
+	//        imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+	//        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+	//        imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+	//        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+	//        imageBarrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT | 
+	//                                   VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+	//        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | 
+	//                                   VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+	//        imageBarrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT | 
+	//                                    VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+	//        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+	//        imageBarrier.dstAccessMask = 0;
+	//        break;
+	//    case VK_IMAGE_LAYOUT_GENERAL:
+	//        imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+	//        imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+	//        break;
+	//    default:
+	//	   imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+	//        imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+	//        break;
+	//    }
+	//
+	//    // Add synchronization for blit operations
+	//    if (currentLayout == VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL) {
+	//        imageBarrier.srcStageMask |= VK_PIPELINE_STAGE_2_BLIT_BIT;
+	//    }
+	//    if (newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+	//        imageBarrier.dstStageMask |= VK_PIPELINE_STAGE_2_BLIT_BIT;
+	//    }
+	//
+	//    imageBarrier.oldLayout = currentLayout;
+	//    imageBarrier.newLayout = newLayout;
+	//
+	//
+	//    //TODO STENCIL SUPPORT
+	//
+	//    VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ?
+	//        VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+	//
+	//
+	//
+	//
+	//    imageBarrier.subresourceRange = vkInit::imageSubresourceRange(aspectMask);
+	//    imageBarrier.image = image;
+	//
+	//    VkDependencyInfo depInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
+	//    depInfo.imageMemoryBarrierCount = 1;
+	//    depInfo.pImageMemoryBarriers = &imageBarrier;
+	//
+	//    vkCmdPipelineBarrier2(cmd, &depInfo);
+	//}
+	//
+
+
 	void vkUtil::transitionImage(VkCommandBuffer cmd, VkImage image, VkImageLayout currentLayout, VkImageLayout newLayout)
 	{
 		VkImageMemoryBarrier2 imageBarrier{ .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
 		imageBarrier.pNext = nullptr;
 
-		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-		imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
-		imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
+		//if (swapchainDebug)
+		//{
+
+		//	switch (currentLayout) {
+		//	case VK_IMAGE_LAYOUT_UNDEFINED:
+		//		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+		//		imageBarrier.srcAccessMask = 0;
+		//		break;
+		//	case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+		//		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+		//		imageBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+		//		break;
+		//	default:
+		//		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+		//		imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+		//		break;
+		//	}
+
+		//	switch (newLayout) {
+		//	case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+		//		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+		//		imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+		//		break;
+		//	case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+		//		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+		//		imageBarrier.dstAccessMask = 0;
+		//		break;
+		//	default:
+		//		imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+		//		imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+		//		break;
+		//	}
+		//}
+		//else
+		{
+			// Set up transition details based on layouts
+			switch (currentLayout) {
+			//case VK_IMAGE_LAYOUT_UNDEFINED:
+			//	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_NONE;
+			//	imageBarrier.srcAccessMask = 0;
+			//	break;
+			//case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			//	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+			//	imageBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT | VK_ACCESS_2_TRANSFER_READ_BIT;
+			//	break;
+				//case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+				//	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT | VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+				//	imageBarrier.srcAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+				//	break;
+				//case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+				//	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+				//	imageBarrier.srcAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT |
+				//		VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
+				//	break;
+				//case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+				//	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+				//		VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+				//	imageBarrier.srcAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+				//		VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+				//	break;
+				//case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+				//	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+				//	imageBarrier.srcAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+				//	break;
+			default:
+				imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+				imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
+				break;
+			}
+
+			switch (newLayout) {
+			case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+			//	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+			//	imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT | VK_ACCESS_2_TRANSFER_READ_BIT;
+			//	break;
+			//	//case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+			//	//	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT | VK_PIPELINE_STAGE_2_BLIT_BIT;
+			//	//	imageBarrier.dstAccessMask = VK_ACCESS_2_TRANSFER_READ_BIT;
+			//	//	break;
+			//	//case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+			//	//	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+			//	//	imageBarrier.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT;
+			//	//	break;
+			//	//case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+			//	//	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+			//	//	imageBarrier.dstAccessMask = VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT |
+			//	//		VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT;
+			//	//	break;
+			//	//case VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL:
+			//	//	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT |
+			//	//		VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+			//	//	imageBarrier.dstAccessMask = VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT |
+			//	//		VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+			//	//	break;
+			//case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
+			//	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+			//	imageBarrier.dstAccessMask = 0;
+			//	break;
+				//case VK_IMAGE_LAYOUT_GENERAL:
+				//	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+				//	imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
+				//	break;
+			default:
+				imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+				imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
+				break;
+			}
+
+		}
 
 		imageBarrier.oldLayout = currentLayout;
 		imageBarrier.newLayout = newLayout;
 
-		VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+		VkImageAspectFlags aspectMask = (newLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ?
+			VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 		imageBarrier.subresourceRange = vkInit::imageSubresourceRange(aspectMask);
 		imageBarrier.image = image;
 
-		VkDependencyInfo depInfo{};
-		depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
-		depInfo.pNext = nullptr;
-		depInfo.pNext = nullptr;
+		VkDependencyInfo depInfo{ .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO };
 		depInfo.imageMemoryBarrierCount = 1;
 		depInfo.pImageMemoryBarriers = &imageBarrier;
 
@@ -68,7 +285,6 @@ namespace SE
 	{
 		int mipLevels = int(std::floor(std::log2(std::max(imageSize.width, imageSize.height)))) + 1;
 		for (int mip = 0; mip < mipLevels; mip++) {
-
 			VkExtent2D halfSize = imageSize;
 			halfSize.width /= 2;
 			halfSize.height /= 2;

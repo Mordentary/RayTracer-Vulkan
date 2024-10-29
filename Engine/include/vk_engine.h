@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "SingularityEngine_export.h" 
-#include "vk_descriptors.h" 
+#include "SingularityEngine_export.h"
+#include "vk_descriptors.h"
 #include "vk_types.h"
 #include "vk_loader.h"
 #include "camera.h"
@@ -17,13 +17,10 @@
 #include <optional>
 #include <array>
 
-
-
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <filesystem>
-
 
 namespace SE
 {
@@ -50,28 +47,168 @@ namespace SE
 		}
 	};
 
-	// Renderable object structure
+	// Minimal resources for a mesh draw command
 	struct DrawCommand {
+		DrawCommand(
+			uint32_t inIndexCount,
+			uint32_t inFirstIndex,
+			VkBuffer inIndexBuffer,
+			const MaterialInstance& inMaterial,
+			const glm::mat4& inTransform,
+			VkDeviceAddress inVertexBufferAddress
+		) : indexCount(inIndexCount)
+			, firstIndex(inFirstIndex)
+			, indexBuffer(inIndexBuffer)
+			, material(inMaterial)
+			, transform(inTransform)
+			, vertexBufferAddress(inVertexBufferAddress) {}
+
 		uint32_t indexCount;
 		uint32_t firstIndex;
 		VkBuffer indexBuffer;
-
-		MaterialInstance* material;
-
+		const MaterialInstance& material;
 		glm::mat4 transform;
 		VkDeviceAddress vertexBufferAddress;
 	};
 
 	// Drawing context
-	struct DrawingContext {
-		std::vector<DrawCommand> opaqueObjects;
+	class RenderQueue {
+	public:
+		// Add objects to the queue
+		void addOpaque(const DrawCommand& cmd) {
+			m_OpaqueObjects.push_back(cmd);
+		}
+
+		void addTransparent(const DrawCommand& cmd) {
+			m_TransparentObjects.push_back(cmd);
+		}
+
+		// Clear the queue
+		void clear() {
+			m_OpaqueObjects.clear();
+			m_TransparentObjects.clear();
+		}
+
+		// Reserve space for expected number of objects
+		void reserve(size_t opaqueCount, size_t transparentCount) {
+			m_OpaqueObjects.reserve(opaqueCount);
+			m_TransparentObjects.reserve(transparentCount);
+		}
+
+		// Get read-only access to queued objects
+		[[nodiscard]] const std::vector<DrawCommand>& getOpaqueObjects() const {
+			return m_OpaqueObjects;
+		}
+
+		[[nodiscard]] const std::vector<DrawCommand>& getTransparentObjects() const {
+			return m_TransparentObjects;
+		}
+
+		// Get number of objects in each queue
+		[[nodiscard]] size_t opaqueCount() const { return m_OpaqueObjects.size(); }
+		[[nodiscard]] size_t transparentCount() const { return m_TransparentObjects.size(); }
+		[[nodiscard]] size_t totalCount() const { return opaqueCount() + transparentCount(); }
+
+		// Sort the queues (e.g., front-to-back for opaque, back-to-front for transparent)
+		void sort() {
+			sortOpaqueObjects();
+			sortTransparentObjects();
+		}
+
+	private:
+		std::vector<DrawCommand> m_OpaqueObjects;
+		std::vector<DrawCommand> m_TransparentObjects;
+
+		// Sort opaque objects front-to-back for better performance
+		void sortOpaqueObjects() {
+			// TODO: Implement depth-based sorting for opaque objects
+			// This would typically sort based on distance from camera
+			// to optimize for early z-testing
+		}
+
+		// Sort transparent objects back-to-front for correct blending
+		void sortTransparentObjects() {
+			// TODO: Implement depth-based sorting for transparent objects
+			// This would typically sort based on distance from camera
+			// in reverse order for proper alpha blending
+		}
+	};
+
+	class MaterialSystem {
+	public:
+		void initialize(Engine* engine);
+		void cleanup(VkDevice device);
+		[[nodiscard]] VkDescriptorSet allocateMatDescriptorSet(VkDevice device) { return m_MaterialDescriptorPool.allocate(device, m_MaterialLayout); }
+		[[nodiscard]] const MaterialPipeline& getOpaquePipeline() const { return m_OpaquePipeline; }
+		[[nodiscard]] const MaterialPipeline& getTransparentPipeline() const { return m_TransparentPipeline; }
+		[[nodiscard]] VkDescriptorSetLayout getDescriptorSetLayout() const { return m_MaterialLayout; }
+		[[nodiscard]] DescriptorWriter createWriter() const { return DescriptorWriter(); }
+
+	private:
+		void buildPipelines(Engine* engine);
+		void createDescriptorLayout(Engine* engine);
+
+		DescriptorAllocator m_MaterialDescriptorPool;
+		MaterialPipeline m_OpaquePipeline;
+		MaterialPipeline m_TransparentPipeline;
+		VkDescriptorSetLayout m_MaterialLayout{ VK_NULL_HANDLE };
 	};
 
 	// Mesh node inheriting from SceneNode
-	struct MeshNode : public SceneNode {
-		Shared<MeshAsset> meshAsset;
+	class MeshNode final : public SceneNode {
+	public:
+		MeshNode() = default;
+		explicit MeshNode(Shared<MeshAsset> mesh) : m_Mesh(std::move(mesh)) {}
 
-		virtual void draw(const glm::mat4& parentTransform, DrawingContext& context) override;
+		void setMesh(Shared<MeshAsset> mesh) {
+			m_Mesh = std::move(mesh);
+		}
+
+		[[nodiscard]] const Shared<MeshAsset>& getMesh() const {
+			return m_Mesh;
+		}
+
+		// Override draw to handle mesh rendering
+		void draw(const glm::mat4& topTransform, RenderQueue& renderQueue) override {
+			glm::mat4 nodeMatrix = topTransform * m_WorldTransform;
+
+			// Draw mesh if we have one
+			if (m_Mesh) {
+				auto meshBuffer = m_Mesh->getMeshBuffers();
+				for (const auto& surface : m_Mesh->getSurfaces()) {
+					DrawCommand cmd{
+						surface.indexCount,
+						surface.startIndex,
+						meshBuffer.indexBuffer.buffer,
+						*surface.material.get(),
+						nodeMatrix,
+						meshBuffer.vertexBufferAddress
+					};
+
+					// Add to appropriate queue based on material type
+					if (surface.material->passType == MaterialPass::Transparent) {
+						renderQueue.addTransparent(cmd);
+					}
+					else {
+						renderQueue.addOpaque(cmd);
+					}
+				}
+			}
+
+			// Draw children after mesh
+			SceneNode::draw(topTransform, renderQueue);
+		}
+
+		// Optional: Override update for mesh-specific animations
+		void update(float deltaTime) override {
+			// Add mesh-specific updates here (e.g., skeletal animations)
+
+			// Update children
+			SceneNode::update(deltaTime);
+		}
+
+	private:
+		Shared<MeshAsset> m_Mesh;
 	};
 
 	// Compute push constants
@@ -101,36 +238,17 @@ namespace SE
 		DescriptorAllocator descriptorAllocator;
 		VkFence renderFence;
 		ResourceCleanupQueue cleanupQueue;
+		VkDescriptorSet sceneDescriptorSet;
+		AllocatedBuffer sceneParameterBuffer;
 	};
 
-	// Metallic-Roughness material pipeline
-	struct MetallicRoughnessMaterial {
-		MaterialPipeline opaquePipeline;
-		MaterialPipeline transparentPipeline;
-		VkDescriptorSetLayout materialDescriptorLayout;
 
-		struct MaterialConstants {
-			glm::vec4 colorFactors;
-			glm::vec4 metalRoughFactors;
-			// Padding for uniform buffers
-			glm::vec4 padding[14];
-		};
-
-		struct MaterialResources {
-			AllocatedImage colorImage;
-			VkSampler colorSampler;
-			AllocatedImage metalRoughImage;
-			VkSampler metalRoughSampler;
-			VkBuffer dataBuffer;
-			uint32_t dataBufferOffset;
-		};
-
-		DescriptorWriter descriptorWriter;
-
-		void buildPipeline(Engine* engine);
-		void clearResources(VkDevice device);
-
-		MaterialInstance createMaterial(VkDevice device, MaterialPass pass, const MaterialResources& resources, DescriptorAllocator& allocator);
+	struct EngineStats {
+		float frametime;
+		int triangle_count;
+		int drawcall_count;
+		float scene_update_time;
+		float mesh_draw_time;
 	};
 
 	// Frame overlap constant
@@ -138,20 +256,53 @@ namespace SE
 
 	// Vulkan engine class
 	class Engine {
-		friend MetallicRoughnessMaterial;
-		friend std::optional<Shared<LoadedGLTF>> loadGltfMeshes(Engine* engine, std::filesystem::path filePath);
-		friend std::optional<AllocatedImage> loadImage(Engine* engine, fastgltf::Asset& asset, fastgltf::Image& image);
-		friend LoadedGLTF;
 	public:
-		static Engine& GetInstance();
 
-		SINGULARITY_API void init();
+		VkDevice getDevice();
+		VkDescriptorSetLayout getSceneDescriptorLayout();
+		MaterialSystem& getMaterialSystem() { return m_MaterialSystem; };
+		const AllocatedImage& getDrawImage() { return m_DrawImage; };
+		const AllocatedImage& getDepthImage() { return m_DepthImage; };
+		VmaAllocator getVmaAllocator() { return m_Allocator; };
+		//const MaterialFactory& getMaterialTemplate() { return m_MaterialFactory; };
+
+		SINGULARITY_API static Engine& getInstance() {
+			static Engine instance;
+			return instance;
+		}
+
 		SINGULARITY_API void run();
 		SINGULARITY_API void cleanup();
 		void drawFrame();
 		GPUMeshBuffers uploadMesh(const std::span<uint32_t>& indices, const std::span<Vertex>& vertices);
+		AllocatedImage createImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+		AllocatedImage createImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+		void destroyImage(const AllocatedImage& image);
+		AllocatedBuffer createBuffer(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
+		void destroyBuffer(const AllocatedBuffer& buffer);
 
+		struct DefaultData
+		{
+			AllocatedImage whiteImage;
+			AllocatedImage blackImage;
+			AllocatedImage greyImage;
+			AllocatedImage errorCheckerboardImage;
+			VkSampler samplerLinear;
+			VkSampler samplerNearest;
+			Shared<MaterialInstance> defaultMaterial;
+		};
+
+		DefaultData getDefaultEngineData() { return m_DefaultEngineData; };
 	private:
+		Engine(const Engine&) = delete;
+		Engine(Engine&&) = delete;
+		Engine& operator=(const Engine&) = delete;
+		Engine& operator=(Engine&&) = delete;
+
+		void init();
+		Engine();
+		~Engine();
+
 		bool m_IsInitialized = false;
 		bool m_ResizeRequested = false;
 		int m_CurrentFrame = 0;
@@ -203,25 +354,19 @@ namespace SE
 		VkCommandBuffer m_ImguiCommandBuffer;
 		VkCommandPool m_ImguiCommandPool;
 
-		AllocatedImage m_WhiteImage;
-		AllocatedImage m_BlackImage;
-		AllocatedImage m_GreyImage;
-		AllocatedImage m_ErrorCheckerboardImage;
+		DefaultData m_DefaultEngineData;
+		RenderQueue m_MainRenderQueue;
+		MaterialSystem m_MaterialSystem;
 
-		VkSampler m_SamplerLinear;
-		VkSampler m_SamplerNearest;
-
-		MaterialInstance m_DefaultMaterial;
-		MetallicRoughnessMaterial m_MetallicRoughnessMaterial;
-
-		DrawingContext m_MainDrawContext;
 		std::unordered_map<std::string, Shared<LoadedGLTF>> m_LoadedNodes;
 
-
 		Shared<Camera> m_Camera;
-
+		EngineStats stats;
 	private:
 		void updateScene();
+
+		void initScene();
+
 		void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 		// Initialization functions
 		void resizeSwapchain();
@@ -241,11 +386,6 @@ namespace SE
 		void drawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 		// Resource management
-		AllocatedImage createImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-		AllocatedImage createImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-		void destroyImage(const AllocatedImage& image);
-		AllocatedBuffer createBuffer(size_t size, VkBufferUsageFlags usage, VmaMemoryUsage memoryUsage);
-		void destroyBuffer(const AllocatedBuffer& buffer);
 		void createSwapchain(uint32_t width, uint32_t height);
 		void destroySwapchain();
 	};

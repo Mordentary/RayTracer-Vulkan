@@ -1,4 +1,5 @@
 ﻿#pragma once
+
 #include"engine_core.h"
 
 #include <vk_mem_alloc.h>
@@ -6,9 +7,11 @@
 #include <glm/vec4.hpp>
 #include <memory>
 #include <vector>
+#include <fastgltf\types.hpp>
 
 namespace SE
 {
+	class Engine;
 	// Allocated image structure
 	struct AllocatedImage {
 		VkImage image;
@@ -16,6 +19,7 @@ namespace SE
 		VmaAllocation allocation;
 		VkExtent3D extent;
 		VkFormat format;
+		VkImageLayout currentLayout{ VK_IMAGE_LAYOUT_UNDEFINED };
 	};
 
 	// Allocated buffer structure
@@ -23,16 +27,12 @@ namespace SE
 		VkBuffer buffer;
 		VmaAllocation allocation;
 		VmaAllocationInfo allocationInfo;
-	};
 
-	// GPU GLTF material structure
-	struct GPUGLTFMaterial {
-		glm::vec4 colorFactors;
-		glm::vec4 metalRoughFactors;
-		glm::vec4 padding[14];
+		template<typename T>
+		[[nodiscard]] T* getMappedData() const {
+			return static_cast<T*>(allocationInfo.pMappedData);
+		}
 	};
-
-	static_assert(sizeof(GPUGLTFMaterial) == 256, "GPUGLTFMaterial size must be 256 bytes");
 
 	// GPU scene data structure
 	struct GPUSceneData {
@@ -44,24 +44,54 @@ namespace SE
 		glm::vec4 sunlightColor;
 	};
 
-	// Material pass enumeration
+	// Defines the type of material pass for rendering
 	enum class MaterialPass : uint8_t {
-		MainColor,
-		Transparent,
-		Other
+		MainColor,    // Main opaque pass
+		Transparent,  // Transparent objects pass
+		Other         // Reserved for future passes
 	};
 
-	// Material pipeline structure
+	// Represents a compiled graphics pipeline with its layout
 	struct MaterialPipeline {
-		VkPipeline pipeline;
-		VkPipelineLayout layout;
+		VkPipeline pipeline{ VK_NULL_HANDLE };
+		VkPipelineLayout layout{ VK_NULL_HANDLE };
 	};
 
-	// Material instance structure
 	struct MaterialInstance {
-		MaterialPipeline* pipeline;
-		VkDescriptorSet descriptorSet;
-		MaterialPass passType;
+		const MaterialPipeline* pipeline{ nullptr };
+		VkDescriptorSet descriptorSet{ VK_NULL_HANDLE };
+		MaterialPass passType{ MaterialPass::MainColor };
+	};
+
+	class MaterialFactory {
+	public:
+		struct Constants {
+			glm::vec4 baseColorFactor{ 1.0f };
+			glm::vec4 metallicRoughnessFactors{ 1.0f };
+			glm::vec4 emissiveFactor{ 0.0f };
+			float alphaCutoff{ 0.5f };
+			float padding[3]{};
+		};
+
+		struct Resources {
+			AllocatedImage albedoTexture;
+			AllocatedImage metallicRoughnessTexture;
+			AllocatedImage normalTexture;
+			AllocatedImage emissiveTexture;
+			AllocatedImage occlusionTexture;
+			VkSampler sampler{ VK_NULL_HANDLE };
+			VkBuffer uniformBuffer{ VK_NULL_HANDLE };
+			uint32_t uniformBufferOffset{ 0 };
+		};
+
+		// Prevent instantiation - this is a pure factory class
+		MaterialFactory() = delete;
+
+		[[nodiscard]] static MaterialInstance createInstance(
+			Engine* engine,
+			MaterialPass pass,
+			const Resources& resources
+		);
 	};
 
 	// Vertex structure aligned to 16 bytes
@@ -87,35 +117,107 @@ namespace SE
 	};
 
 	// Drawing context forward declaration
-	struct DrawingContext;
+	struct RenderQueue;
 
 	// Renderable interface
 	class IRenderable {
 	public:
-		virtual void draw(const glm::mat4& parentTransform, DrawingContext& context) = 0;
+		virtual ~IRenderable() = default;
+		virtual void draw(const glm::mat4& parentTransform, RenderQueue& renderQueue) = 0;
+		virtual void update(float deltaTime) {}
 	};
 	// Scene node structure inheriting from IRenderable
-	struct SceneNode : public IRenderable
-	{
-		std::weak_ptr<SceneNode> parent;
-		std::vector<Shared<SceneNode>> children{};
-		glm::mat4 localTransform{};
-		glm::mat4 worldTransform{};
+	class SceneNode :
+		public IRenderable,
+		public std::enable_shared_from_this<SceneNode> {
+	public:
+		SceneNode() = default;
+		virtual ~SceneNode() = default;
+
+		// Prevent copying, allow moving
+		SceneNode(const SceneNode&) = delete;
+		SceneNode& operator=(const SceneNode&) = delete;
+		SceneNode(SceneNode&&) = default;
+		SceneNode& operator=(SceneNode&&) = default;
+
+		// Scene graph manipulation
+		void addChild(Shared<SceneNode>& child) {
+			child->m_Parent = shared_from_this();
+			m_Children.push_back((child));
+		}
+
+		void removeChild(const SceneNode* child) {
+			auto it = std::find_if(m_Children.begin(), m_Children.end(),
+				[child](const auto& ptr) { return ptr.get() == child; });
+			if (it != m_Children.end()) {
+				(*it)->m_Parent.reset();
+				m_Children.erase(it);
+			}
+		}
+
+		// Transform manipulation
+
+		// Getters
+		[[nodiscard]] const glm::mat4& getLocalTransform() const { return m_LocalTransform; }
+		[[nodiscard]] const glm::mat4& getWorldTransform() const { return m_WorldTransform; }
+		[[nodiscard]] const std::vector<Shared<SceneNode>>& getChildren() const { return m_Children; }
+		[[nodiscard]] Weak<SceneNode> getParent() const { return m_Parent; }
+
+		virtual void draw(const glm::mat4& topTransform, RenderQueue& renderQueue) override {
+			// Calculate world transform
+			//m_WorldTransform = topTransform * m_LocalTransform;
+
+			// Draw all children with the updated transform
+			for (const auto& child : m_Children) {
+				child->draw(topTransform, renderQueue);
+			}
+		}
+
+		// Update function for animations or other time-based updates
+		virtual void update(float deltaTime) override {
+			for (const auto& child : m_Children) {
+				child->update(deltaTime);
+			}
+		}
+
+		//void updateWorldTransform() {
+		//	if (auto parent = m_Parent.lock())
+		//	{
+		//		m_WorldTransform = parent->getWorldTransform() * m_LocalTransform;
+		//	}
+		//	//else
+		//	//{
+		//	//	m_WorldTransform = m_LocalTransform;
+		//	//}
+		//	// Propagate transform update to children
+		//	for (const auto& child : m_Children) {
+		//		child->updateWorldTransform();
+		//	}
+		//}
 
 		void refreshTransform(const glm::mat4& parentMatrix)
 		{
-			worldTransform = parentMatrix * localTransform;
-			for (const auto& child : children) {
-				child->refreshTransform(worldTransform);
+			m_WorldTransform = parentMatrix * m_LocalTransform;
+			for (auto c : m_Children) {
+				c->refreshTransform(m_WorldTransform);
 			}
 		}
 
-		virtual void draw(const glm::mat4& parentTransform, DrawingContext& context) override
-		{
-			// draw children
-			for (const auto& child : children) {
-				child->draw(parentTransform, context);
-			}
+		void setLocalTransform(const glm::mat4& transform) {
+			m_LocalTransform = transform;
+			//updateWorldTransform();
 		}
+
+	protected:
+
+		void setParent(const std::shared_ptr<SceneNode>& parent) { m_Parent = parent; }
+
+		Weak<SceneNode> m_Parent;
+		std::vector<Shared<SceneNode>> m_Children;
+
+		glm::mat4 m_LocalTransform{ 1.0f };
+		glm::mat4 m_WorldTransform{ 1.0f };
+
+		// Update world transform and propagate to children
 	};
 }
