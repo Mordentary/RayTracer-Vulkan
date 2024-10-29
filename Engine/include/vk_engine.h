@@ -242,7 +242,6 @@ namespace SE
 		AllocatedBuffer sceneParameterBuffer;
 	};
 
-
 	struct EngineStats {
 		float frametime;
 		int triangle_count;
@@ -343,7 +342,10 @@ namespace SE
 		AllocatedImage m_DrawImage;
 		AllocatedImage m_DepthImage;
 		VkExtent2D m_DrawExtent;
+		float m_LastWindowWidth = 0;
+		float m_LastWindowHeight = 0;
 
+		glm::vec2 m_ViewpotrSize;
 		VkDescriptorSet m_BackgroundShaderDescriptorSet;
 		VkDescriptorSetLayout m_BackgroundShaderDescriptorLayout;
 
@@ -370,6 +372,8 @@ namespace SE
 		void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 		// Initialization functions
 		void resizeSwapchain();
+		void resizeDrawImage();
+
 		void initDefaultData();
 		void initVulkan();
 		void initSwapchain();
@@ -380,6 +384,12 @@ namespace SE
 		void initBackgroundPipelines();
 		void initImgui();
 
+		//void handleResize();
+		bool m_ShowViewport = true;
+		bool m_ShowMetricsWindow = false;
+		bool m_ShowStatsWindow = true;
+		bool m_ShowStyleEditor = false;
+		VkDescriptorSet m_ImguiDrawImageDescriptor = VK_NULL_HANDLE;  // Add this
 		// Drawing functions
 		void drawBackground(VkCommandBuffer cmd);
 		void drawGeometry(VkCommandBuffer cmd);

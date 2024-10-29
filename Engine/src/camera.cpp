@@ -6,7 +6,6 @@
 #include <glm\gtx\quaternion.hpp>
 
 namespace SE {
-
 	namespace {
 		constexpr float PITCH_LIMIT = 89.0f;
 
@@ -50,12 +49,10 @@ namespace SE {
 		glm::mat4 rotationMatrix = glm::mat4_cast(glm::inverse(m_Orientation));
 		glm::mat4 translationMatrix = glm::translate(glm::mat4(1.0f), -m_Position);
 		m_View = rotationMatrix * translationMatrix;
-
 	}
 
 	void Camera::updateProjectionMatrix()
 	{
-
 		m_Projection = glm::perspective(m_Fov, m_AspectRatio, m_NearPlane, m_FarPlane);
 
 		m_Projection[1][1] *= -1;
@@ -76,7 +73,6 @@ namespace SE {
 		if (state[SDL_SCANCODE_LCTRL]) movement -= glm::vec3(0.0f, 1.0f, 0.0f);
 
 		if (glm::length2(movement) > 0.0f) {
-
 			if (state[SDL_SCANCODE_LSHIFT]) velocity += 1.f;
 			movement = glm::normalize(movement) * velocity;
 			m_Position += movement;
@@ -161,5 +157,4 @@ namespace SE {
 		m_Fov = clampFov(fov);
 		updateProjectionMatrix();
 	}
-
 } // namespace SE

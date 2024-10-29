@@ -13,7 +13,7 @@
 #include <imgui_impl_vulkan.h>
 #include <VkBootstrap.h>
 #include <vk_mem_alloc.h>
-
+#include <imgui_internal.h>
 namespace SE
 {
 #ifdef _DEBUG
@@ -221,7 +221,7 @@ namespace SE
 	// Frame Drawing
 	void Engine::drawFrame()
 	{
-		  {
+		{
 			SCOPED_TIMER_COLORED("Frame Sync", ImVec4(0.7f, 0.7f, 0.2f, 1.0f));
 			VK_CHECK(vkWaitForFences(m_Device, 1, &getCurrentFrame().renderFence, VK_TRUE, 1000000000));
 			VK_CHECK(vkResetFences(m_Device, 1, &getCurrentFrame().renderFence));
@@ -230,44 +230,63 @@ namespace SE
 		uint32_t swapchainImageIndex;
 		{
 			SCOPED_TIMER_COLORED("Acquire Swapchain", ImVec4(0.2f, 0.7f, 0.7f, 1.0f));
-			VkResult e = vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000, 
+			VkResult e = vkAcquireNextImageKHR(m_Device, m_Swapchain, 1000000000,
 				getCurrentFrame().swapchainSemaphore, VK_NULL_HANDLE, &swapchainImageIndex);
 			if (e == VK_ERROR_OUT_OF_DATE_KHR) {
 				m_ResizeRequested = true;
 				return;
 			}
-    }
+		}
 
-		m_DrawExtent.height = std::min(m_SwapchainExtent.height, m_DrawImage.extent.height) * m_RenderScale;
-		m_DrawExtent.width = std::min(m_SwapchainExtent.width, m_DrawImage.extent.width) * m_RenderScale;
+		//m_DrawExtent.height = std::min(m_SwapchainExtent.height, m_DrawImage.extent.height) * m_RenderScale;
+		//m_DrawExtent.width = std::min(m_SwapchainExtent.width, m_DrawImage.extent.width) * m_RenderScale;
 
 		VkCommandBuffer cmd = getCurrentFrame().mainCommandBuffer;
-
-		// Begin command buffer
 		VK_CHECK(vkResetCommandBuffer(cmd, 0));
 		VkCommandBufferBeginInfo cmdBeginInfo = vkInit::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 		VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-		// Prepare image, draw, prepare for blit
-		vkUtil::transitionImage(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
+		// Background pass (compute)
+		vkUtil::transitionImage(cmd, m_DrawImage.image,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_GENERAL);  // Compute shaders need GENERAL layout
 		drawBackground(cmd);
 
-		vkUtil::transitionImage(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-		vkUtil::transitionImage(cmd, m_DepthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
+		// Main geometry pass
+		vkUtil::transitionImage(cmd, m_DrawImage.image,
+			VK_IMAGE_LAYOUT_GENERAL,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+		vkUtil::transitionImage(cmd, m_DepthImage.image,
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 		drawGeometry(cmd);
 
-		vkUtil::transitionImage(cmd, m_DrawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+		// After geometry rendering, transition to sampled for ImGui viewport
+		vkUtil::transitionImage(cmd, m_DrawImage.image,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		// Blit
-		vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-		vkUtil::copyImageToImage(cmd, m_DrawImage.image, m_SwapchainImages[swapchainImageIndex], m_DrawExtent, m_DrawExtent);
-		vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+		//// Draw to swapchain
+		//vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex],
+		//	VK_IMAGE_LAYOUT_UNDEFINED,
+		//	VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-		//Drawing ImGui
+		//// Blit rendered image to swapchain
+		//vkUtil::copyImageToImage(cmd,
+		//	m_DrawImage.image,
+		//	m_SwapchainImages[swapchainImageIndex],
+		//	m_DrawExtent, m_DrawExtent);
+
+		// Draw ImGui
+		vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex],
+			VK_IMAGE_LAYOUT_UNDEFINED,
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		drawImgui(cmd, m_SwapchainImageViews[swapchainImageIndex]);
-		vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+
+		// Prepare for presentation
+		vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex],
+			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 		VK_CHECK(vkEndCommandBuffer(cmd));
 
@@ -301,65 +320,142 @@ namespace SE
 		m_CurrentFrame++;
 	}
 
-	// Main Loop
-	void Engine::run()
-	{
+	void Engine::run() {
 		bool bQuit = false;
 		SDL_Event e;
 		auto lastFrame = std::chrono::high_resolution_clock::now();
-
-
-		while (!bQuit)
-		{
+		bool isViewportHovered = false;
+		while (!bQuit) {
 			Timer::getInstance().beginFrame();
 			auto currentFrame = std::chrono::high_resolution_clock::now();
 			float deltaTime = std::chrono::duration<float>(currentFrame - lastFrame).count();
-			lastFrame = currentFrame;  // Update for next frame
-
-			// Get keyboard state
-			const Uint8* keyboardState = SDL_GetKeyboardState(nullptr);
+			lastFrame = currentFrame;
 
 			// Handle events
 			while (SDL_PollEvent(&e) != 0) {
-				// Close the window when user quits
-				if (e.type == SDL_QUIT)
-					bQuit = true;
+				ImGui_ImplSDL2_ProcessEvent(&e);
 
-				if (e.type == SDL_WINDOWEVENT) {
+				if (e.type == SDL_QUIT) {
+					bQuit = true;
+				}
+				else if (e.type == SDL_WINDOWEVENT) {
 					if (e.window.event == SDL_WINDOWEVENT_MINIMIZED) {
 						m_StopRendering = true;
 					}
-					if (e.window.event == SDL_WINDOWEVENT_RESTORED) {
+					else if (e.window.event == SDL_WINDOWEVENT_RESTORED) {
 						m_StopRendering = false;
 					}
-				}
-				m_Camera->handleEvent(e);
-				ImGui_ImplSDL2_ProcessEvent(&e);
-			}
-			// Process keyboard input for camera movement
-			m_Camera->processKeyboard(keyboardState, deltaTime);
+					else if (e.window.event == SDL_WINDOWEVENT_RESIZED) {
+						m_ResizeRequested = true;
 
+						// Update m_WindowExtent immediately
+						m_WindowExtent.width = static_cast<uint32_t>(e.window.data1);
+						m_WindowExtent.height = static_cast<uint32_t>(e.window.data2);
+					}
+				}
+				// Only pass events to camera if ImGui isn't capturing them and viewport is hovered
+				if (isViewportHovered)
+					m_Camera->handleEvent(e);
+			}
+
+			if (isViewportHovered && !ImGui::GetIO().WantCaptureKeyboard) {
+				const Uint8* keyboardState = SDL_GetKeyboardState(nullptr);
+				m_Camera->processKeyboard(keyboardState, deltaTime);
+			}
 			if (m_ResizeRequested) {
 				resizeSwapchain();
 			}
 
-			// Do not draw if we are minimized
 			if (m_StopRendering) {
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				continue;
 			}
-			// ImGui new frame
+
+			// Start ImGui frame
 			ImGui_ImplVulkan_NewFrame();
 			ImGui_ImplSDL2_NewFrame();
 			ImGui::NewFrame();
 
-			//// Some ImGui UI to test
-			if (ImGui::Begin("Background"))
+			// Create the dockspace
+			const ImGuiViewport* viewport = ImGui::GetMainViewport();
+			ImGui::SetNextWindowPos(viewport->WorkPos);
+			ImGui::SetNextWindowSize(viewport->WorkSize);
+			ImGui::SetNextWindowViewport(viewport->ID);
+
+			ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar;
+			window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
+			window_flags |= ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
+			window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
+
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
+			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
+
+			ImGui::Begin("DockSpace", nullptr, window_flags);
+			ImGui::PopStyleVar(3);
+
+			ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f));
+
+			if (ImGui::BeginMenuBar()) {
+				if (ImGui::BeginMenu("Windows")) {
+					ImGui::MenuItem("Main Viewport", NULL, &m_ShowViewport);
+					ImGui::MenuItem("Metrics", NULL, &m_ShowMetricsWindow);
+					ImGui::MenuItem("Style Editor", NULL, &m_ShowStyleEditor);
+					ImGui::MenuItem("Stats", NULL, &m_ShowStatsWindow);
+					ImGui::EndMenu();
+				}
+				ImGui::EndMenuBar();
+			}
+
+			ImGui::End(); // DockSpace
+
+			if (m_ShowViewport)
 			{
+				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+				if (ImGui::Begin("Viewport", &m_ShowViewport,
+					ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
+				{
+					// Get current viewport size
+					ImVec2 viewportSize = ImGui::GetContentRegionAvail();
+					isViewportHovered = ImGui::IsWindowHovered();
+					// Apply minimum size to prevent tiny images
+					float newWidth = std::max(viewportSize.x, 32.0f);
+					float newHeight = std::max(viewportSize.y, 32.0f);
+
+					// Check if size changed significantly
+					const float resizeThreshold = 1.0f;  // Prevents constant minor resizing
+					bool sizeChanged =
+						std::abs(m_ViewpotrSize.x - newWidth) > resizeThreshold ||
+						std::abs(m_ViewpotrSize.y - newHeight) > resizeThreshold;
+
+					if (sizeChanged && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+					{
+						m_ViewpotrSize.x = newWidth;
+						m_ViewpotrSize.y = newHeight;
+						resizeDrawImage();  // This will use the new dimensions
+					}
+
+					// Draw the viewport image
+					ImGui::Image(
+						(ImTextureID)(uint64_t)m_ImguiDrawImageDescriptor,
+						viewportSize,
+						ImVec2(0, 0),
+						ImVec2(1, 1),
+						ImVec4(1, 1, 1, 1),
+						ImVec4(0, 0, 0, 0));
+				}
+				ImGui::End();
+				ImGui::PopStyleVar();
+			}
+
+			// Your other windows
+			if (ImGui::Begin("Background", nullptr)) {
 				ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.f);
 				ComputeEffect& selected = m_BackgroundEffects[m_ActiveBackgroundEffect];
 				ImGui::Text("Selected effect: %s", selected.name.c_str());
-				ImGui::SliderInt("Effect Index", &m_ActiveBackgroundEffect, 0, static_cast<int>(m_BackgroundEffects.size()) - 1);
+				ImGui::SliderInt("Effect Index", &m_ActiveBackgroundEffect, 0,
+					static_cast<int>(m_BackgroundEffects.size()) - 1);
 
 				ImGui::InputFloat4("data1", glm::value_ptr(selected.pushConstants.data1));
 				ImGui::InputFloat4("data2", glm::value_ptr(selected.pushConstants.data2));
@@ -368,29 +464,45 @@ namespace SE
 			}
 			ImGui::End();
 
-			if (ImGui::Begin("Debug")) {
+			if (ImGui::Begin("Debug", nullptr)) {
 				static bool showTimer = true;
 				if (ImGui::Button("Toggle Performance Timer")) {
 					showTimer = !showTimer;
 				}
+
 				if (showTimer) {
 					Timer::getInstance().drawImGuiWindow(&showTimer);
 				}
 			}
 			ImGui::End();
 
-			// Make ImGui calculate internal draw structures
+			// Demo windows
+			if (m_ShowMetricsWindow)
+				ImGui::ShowMetricsWindow(&m_ShowMetricsWindow);
+			if (m_ShowStyleEditor) {
+				ImGui::Begin("Style Editor", &m_ShowStyleEditor);
+				ImGui::ShowStyleEditor();
+				ImGui::End();
+			}
 			ImGui::Render();
 
-		{
-            SCOPED_TIMER_COLORED("Scene Update", ImVec4(0.2f, 0.8f, 0.8f, 1.0f));
-            updateScene();
-        }
+			// Update and render scene
+			{
+				SCOPED_TIMER_COLORED("Scene Update", ImVec4(0.2f, 0.8f, 0.8f, 1.0f));
+				updateScene();
+			}
 
-        {
-            SCOPED_TIMER_COLORED("Frame Draw", ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
-            drawFrame();
-        }
+			{
+				SCOPED_TIMER_COLORED("Frame Draw", ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
+				drawFrame();
+			}
+
+			// Finish ImGui Frame
+			if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+			{
+				ImGui::UpdatePlatformWindows();
+				ImGui::RenderPlatformWindowsDefault();
+			}
 
 			Timer::getInstance().endFrame();
 		}
@@ -447,19 +559,146 @@ namespace SE
 	// Resize Swapchain
 	void Engine::resizeSwapchain()
 	{
+		int width, height;
+		SDL_GetWindowSize(m_Window, &width, &height);
+		m_WindowExtent.width = static_cast<uint32_t>(width);
+		m_WindowExtent.height = static_cast<uint32_t>(height);
+
 		vkDeviceWaitIdle(m_Device);
+
+		// Cleanup old swapchain
 		destroySwapchain();
 
-		int w, h;
-		SDL_GetWindowSize(m_Window, &w, &h);
-		m_WindowExtent.width = w;
-		m_WindowExtent.height = h;
-
+		// Create new swapchain with updated dimensions
 		createSwapchain(m_WindowExtent.width, m_WindowExtent.height);
 
+		// Resize draw image if needed
+		resizeDrawImage();
+
+		m_Camera->updateAspectRatio(m_ViewpotrSize.x, m_ViewpotrSize.y);
 		m_ResizeRequested = false;
 	}
 
+	void Engine::resizeDrawImage() {
+		// Wait for all GPU operations to complete before resizing
+		VK_CHECK(vkDeviceWaitIdle(m_Device));
+
+		// Destroy old resources
+		if (m_DrawImage.imageView != VK_NULL_HANDLE) {
+			vkDestroyImageView(m_Device, m_DrawImage.imageView, nullptr);
+			m_DrawImage.imageView = VK_NULL_HANDLE;
+		}
+		if (m_DrawImage.image != VK_NULL_HANDLE) {
+			vmaDestroyImage(m_Allocator, m_DrawImage.image, m_DrawImage.allocation);
+			m_DrawImage.image = VK_NULL_HANDLE;
+		}
+
+		if (m_DepthImage.imageView != VK_NULL_HANDLE) {
+			vkDestroyImageView(m_Device, m_DepthImage.imageView, nullptr);
+			m_DepthImage.imageView = VK_NULL_HANDLE;
+		}
+		if (m_DepthImage.image != VK_NULL_HANDLE) {
+			vmaDestroyImage(m_Allocator, m_DepthImage.image, m_DepthImage.allocation);
+			m_DepthImage.image = VK_NULL_HANDLE;
+		}
+
+		// Calculate new draw extent based on viewport size
+		VkExtent2D newDrawExtent = {
+			static_cast<uint32_t>(m_ViewpotrSize.x * m_RenderScale),
+			static_cast<uint32_t>(m_ViewpotrSize.y * m_RenderScale)
+		};
+
+		// Apply reasonable size limits
+		const uint32_t MAX_DIMENSION = 8192;  // Typical max texture dimension
+		newDrawExtent.width = std::clamp(newDrawExtent.width, 1u, MAX_DIMENSION);
+		newDrawExtent.height = std::clamp(newDrawExtent.height, 1u, MAX_DIMENSION);
+
+		if (newDrawExtent.width == m_DrawExtent.width &&
+			newDrawExtent.height == m_DrawExtent.height) {
+			return;
+		}
+
+		m_DrawExtent = newDrawExtent;
+
+		// Create new draw image
+		VkExtent3D extent3D = { m_DrawExtent.width, m_DrawExtent.height, 1 };
+
+		VkImageUsageFlags drawFlags = VK_IMAGE_USAGE_TRANSFER_DST_BIT |
+			VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
+			VK_IMAGE_USAGE_STORAGE_BIT |
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
+			VK_IMAGE_USAGE_SAMPLED_BIT;
+
+		VmaAllocationCreateInfo allocInfo{};
+		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		allocInfo.requiredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+		// Create color image with error checking
+		VkImageCreateInfo colorInfo = vkInit::imageCreateInfo(
+			VK_FORMAT_R16G16B16A16_SFLOAT,
+			drawFlags,
+			extent3D);
+
+		VkResult result = vmaCreateImage(m_Allocator, &colorInfo, &allocInfo,
+			&m_DrawImage.image, &m_DrawImage.allocation, nullptr);
+		if (result != VK_SUCCESS) {
+			throw std::runtime_error("Failed to create draw image");
+		}
+
+		VkImageViewCreateInfo colorViewInfo = vkInit::imageviewCreateInfo(
+			VK_FORMAT_R16G16B16A16_SFLOAT,
+			m_DrawImage.image,
+			VK_IMAGE_ASPECT_COLOR_BIT);
+
+		result = vkCreateImageView(m_Device, &colorViewInfo, nullptr, &m_DrawImage.imageView);
+		if (result != VK_SUCCESS) {
+			throw std::runtime_error("Failed to create draw image view");
+		}
+
+		// Create depth image
+		VkImageCreateInfo depthInfo = vkInit::imageCreateInfo(
+			VK_FORMAT_D32_SFLOAT,
+			VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+			extent3D);
+
+		result = vmaCreateImage(m_Allocator, &depthInfo, &allocInfo,
+			&m_DepthImage.image, &m_DepthImage.allocation, nullptr);
+		if (result != VK_SUCCESS) {
+			throw std::runtime_error("Failed to create depth image");
+		}
+
+		VkImageViewCreateInfo depthViewInfo = vkInit::imageviewCreateInfo(
+			VK_FORMAT_D32_SFLOAT,
+			m_DepthImage.image,
+			VK_IMAGE_ASPECT_DEPTH_BIT);
+
+		result = vkCreateImageView(m_Device, &depthViewInfo, nullptr, &m_DepthImage.imageView);
+		if (result != VK_SUCCESS) {
+			throw std::runtime_error("Failed to create depth image view");
+		}
+
+		if (m_ImguiDrawImageDescriptor != VK_NULL_HANDLE) {
+			ImGui_ImplVulkan_RemoveTexture(m_ImguiDrawImageDescriptor);
+		}
+
+		m_ImguiDrawImageDescriptor = ImGui_ImplVulkan_AddTexture(
+			m_DefaultEngineData.samplerNearest,
+			m_DrawImage.imageView,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		// **Update m_BackgroundShaderDescriptorSet**
+		{
+			DescriptorWriter writer;
+			writer.writeImage(
+				0,
+				m_DrawImage.imageView,
+				VK_NULL_HANDLE,
+				VK_IMAGE_LAYOUT_GENERAL,
+				VK_DESCRIPTOR_TYPE_STORAGE_IMAGE
+			);
+			writer.updateSet(m_Device, m_BackgroundShaderDescriptorSet);
+		}
+	}
 	// Initialize Default Data
 	void Engine::initDefaultData()
 	{
@@ -486,7 +725,7 @@ namespace SE
 			VK_IMAGE_USAGE_SAMPLED_BIT);
 		VkSamplerCreateInfo samplerInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
-		// TODO: INVESTIGATE WHY THIS FIXES 
+		// TODO: INVESTIGATE WHY THIS FIXES
 		immediateSubmit([&](VkCommandBuffer cmd) {
 			// Ensure default textures are in correct layout
 			vkUtil::transitionImage(cmd, m_DefaultEngineData.whiteImage.image,
@@ -659,7 +898,8 @@ namespace SE
 			m_WindowExtent.height,
 			1
 		};
-
+		m_DrawExtent.width = static_cast<uint32_t>(1);
+		m_DrawExtent.height = static_cast<uint32_t>(1);
 		// draw image creation
 		m_DrawImage.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 		m_DrawImage.extent = renderExtent;
@@ -670,6 +910,7 @@ namespace SE
 		drawImageFlags |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 		drawImageFlags |= VK_IMAGE_USAGE_STORAGE_BIT;
 		drawImageFlags |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+		drawImageFlags |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
 		VkImageCreateInfo imageInfo = vkInit::imageCreateInfo(m_DrawImage.format, drawImageFlags, renderExtent);
 
@@ -907,6 +1148,8 @@ namespace SE
 
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
+		vkCmdSetScissor(cmd, 0, 1, &scissor);
+
 		VkDescriptorSet globalDescriptor = getCurrentFrame().sceneDescriptorSet;
 
 		//DescriptorWriter writer;
@@ -1034,9 +1277,8 @@ namespace SE
 	}
 
 	// Initialize ImGui
-	void Engine::initImgui()
-	{
-		// 1: Create descriptor pool for IMGUI
+	void Engine::initImgui() {
+		// Create descriptor pool for IMGUI
 		VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
@@ -1055,21 +1297,39 @@ namespace SE
 		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
 		pool_info.maxSets = 1000;
-		pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+		pool_info.poolSizeCount = std::size(pool_sizes);
 		pool_info.pPoolSizes = pool_sizes;
 
 		VkDescriptorPool imguiPool;
 		VK_CHECK(vkCreateDescriptorPool(m_Device, &pool_info, nullptr, &imguiPool));
 
-		// 2: Initialize ImGui library
-
-		// This inits the core structures of ImGui
+		// Initialize ImGui
+		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO();
 
-		// This inits ImGui for SDL
+		// Enable docking and viewports
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		io.ConfigWindowsMoveFromTitleBarOnly = false;  // Allow dragging from anywhere in the window
+
+		// Setup style
+		ImGui::StyleColorsDark();
+		ImGuiStyle& style = ImGui::GetStyle();
+		style.WindowRounding = 5.0f;      // Rounded corners
+		style.FrameRounding = 4.0f;
+		style.GrabRounding = 4.0f;
+		style.WindowBorderSize = 1.0f;    // Visible borders
+		style.FrameBorderSize = 1.0f;
+		style.WindowPadding = ImVec2(8, 8);
+
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+			style.Colors[ImGuiCol_WindowBg].w = 0.9f;  // Slightly transparent windows
+		}
+
+		// Setup platform/renderer backends
 		ImGui_ImplSDL2_InitForVulkan(m_Window);
 
-		// This inits ImGui for Vulkan
 		ImGui_ImplVulkan_InitInfo init_info = {};
 		init_info.Instance = m_Instance;
 		init_info.PhysicalDevice = m_PhysicalDevice;
@@ -1079,21 +1339,25 @@ namespace SE
 		init_info.MinImageCount = 3;
 		init_info.ImageCount = 3;
 		init_info.UseDynamicRendering = true;
+		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-		// Dynamic rendering parameters for ImGui to use
-		init_info.PipelineRenderingCreateInfo = { .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+		init_info.PipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
 		init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
 		init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_SwapchainImageFormat;
 
-		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
 		ImGui_ImplVulkan_Init(&init_info);
-
 		ImGui_ImplVulkan_CreateFontsTexture();
 
-		// Add the destruction of the ImGui created structures
+		m_ImguiDrawImageDescriptor = ImGui_ImplVulkan_AddTexture(
+			m_DefaultEngineData.samplerNearest,
+			m_DrawImage.imageView,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
 		m_MainCleanupQueue.enqueueCleanup([=]() {
+			vkDeviceWaitIdle(m_Device);
 			ImGui_ImplVulkan_Shutdown();
+			ImGui_ImplSDL2_Shutdown();
+			ImGui::DestroyContext();
 			vkDestroyDescriptorPool(m_Device, imguiPool, nullptr);
 			});
 	}
@@ -1283,7 +1547,7 @@ namespace SE
 		m_SwapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
 		vkb::Swapchain vkbSwapchain = swapchainBuilder
-			.set_desired_format(VkSurfaceFormatKHR{ .format = m_SwapchainImageFormat,.colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR })
+			.set_desired_format(VkSurfaceFormatKHR{ .format = m_SwapchainImageFormat, .colorSpace = VK_COLORSPACE_SRGB_NONLINEAR_KHR })
 			.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
 			.set_desired_extent(width, height)
 			.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
@@ -1291,7 +1555,7 @@ namespace SE
 			.value();
 
 		m_Swapchain = vkbSwapchain.swapchain;
-		m_SwapchainExtent = m_WindowExtent;
+		m_SwapchainExtent = vkbSwapchain.extent;  // Use actual swapchain extent
 		m_SwapchainImages = vkbSwapchain.get_images().value();
 		m_SwapchainImageViews = vkbSwapchain.get_image_views().value();
 	}

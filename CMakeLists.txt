@@ -79,7 +79,7 @@ endif()
 find_package(Vulkan REQUIRED)
 
 # Add subdirectories
-add_subdirectory(third_party)
+add_subdirectory(external)
 add_subdirectory(Engine)
 add_subdirectory(shaders)
 add_subdirectory(Application)

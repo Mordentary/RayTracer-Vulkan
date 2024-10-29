@@ -49,20 +49,10 @@ cmake_install.cmake
 Thumbs.db
 
 # Third party libraries
-/third_party/*
+/external/*
 # But keep the following if you have specific third-party files to track
-!/third_party/CMakeLists.txt
-!/third_party/README.md
+!/external/CMakeLists.txt
 
-# Specific third-party libraries that are typically large or frequently updated
-/third_party/VulkanSDK/
-/third_party/glm/
-/third_party/SDL2/
-/third_party/imgui/
-/third_party/stb/
-/third_party/vma/
-/third_party/fastgltf/
-/third_party/fmt/
 
 # Project specific
 imgui.ini
