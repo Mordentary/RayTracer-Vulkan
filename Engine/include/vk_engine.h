@@ -21,6 +21,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
 #include <filesystem>
+#include <glm\gtx\norm.hpp>
 
 namespace SE
 {
@@ -104,33 +105,96 @@ namespace SE
 			return m_TransparentObjects;
 		}
 
+		[[nodiscard]] const DrawCommand& getOpaqueObject(size_t index) const {
+			return m_OpaqueObjects[m_OpaqueSortIndices[index]];
+		}
+
+		[[nodiscard]] const DrawCommand& getTransparentObject(size_t index) const {
+			return m_TransparentObjects[m_TransparentSortIndices[index]];
+		}
 		// Get number of objects in each queue
 		[[nodiscard]] size_t opaqueCount() const { return m_OpaqueObjects.size(); }
 		[[nodiscard]] size_t transparentCount() const { return m_TransparentObjects.size(); }
 		[[nodiscard]] size_t totalCount() const { return opaqueCount() + transparentCount(); }
 
-		// Sort the queues (e.g., front-to-back for opaque, back-to-front for transparent)
-		void sort() {
-			sortOpaqueObjects();
-			sortTransparentObjects();
+		void sort(const glm::vec3& cameraPosition) {
+			if (!m_OpaqueObjects.empty()) {
+				sortOpaqueObjects();
+			}
+
+			if (!m_TransparentObjects.empty()) {
+				sortTransparentObjects(cameraPosition);
+			}
 		}
 
 	private:
 		std::vector<DrawCommand> m_OpaqueObjects;
 		std::vector<DrawCommand> m_TransparentObjects;
+		std::vector<uint32_t> m_OpaqueSortIndices;
+		std::vector<uint32_t> m_TransparentSortIndices;
 
-		// Sort opaque objects front-to-back for better performance
+		struct SortKeyIndex {
+			uint64_t key;      // 44 bits for material/mesh hash, 20 bits for draw index
+			uint32_t index;    // Original array index
+
+			bool operator<(const SortKeyIndex& other) const {
+				return key < other.key;
+			}
+		};
+
 		void sortOpaqueObjects() {
-			// TODO: Implement depth-based sorting for opaque objects
-			// This would typically sort based on distance from camera
-			// to optimize for early z-testing
+			if (m_OpaqueObjects.empty()) return;
+
+			// Initialize indices vector
+			m_OpaqueSortIndices.resize(m_OpaqueObjects.size());
+			std::vector<SortKeyIndex> sortKeys;
+			sortKeys.resize(m_OpaqueObjects.size());
+
+			// Generate sort keys for each object
+			for (uint32_t i = 0; i < m_OpaqueObjects.size(); i++) {
+				const auto& cmd = m_OpaqueObjects[i];
+
+				// Create hash from material and buffer pointers for upper 44 bits
+				uint64_t materialPart = reinterpret_cast<uint64_t>(cmd.material.pipeline);
+				uint64_t bufferPart = reinterpret_cast<uint64_t>(cmd.indexBuffer);
+				uint64_t hashPart = (materialPart ^ bufferPart) & 0xFFFFFFFFFFF;
+
+				// Combine hash and index into sort key
+				sortKeys[i].key = (hashPart << 20) | (i & 0xFFFFF);
+				sortKeys[i].index = i;
+			}
+
+			// Sort based on keys
+			std::sort(sortKeys.begin(), sortKeys.end());
+
+			// Store sorted indices
+			for (uint32_t i = 0; i < sortKeys.size(); i++) {
+				m_OpaqueSortIndices[i] = sortKeys[i].index;
+			}
 		}
 
-		// Sort transparent objects back-to-front for correct blending
-		void sortTransparentObjects() {
-			// TODO: Implement depth-based sorting for transparent objects
-			// This would typically sort based on distance from camera
-			// in reverse order for proper alpha blending
+		void sortTransparentObjects(const glm::vec3& cameraPosition) {
+			if (m_TransparentObjects.empty()) return;
+
+			m_TransparentSortIndices.resize(m_TransparentObjects.size());
+			for (uint32_t i = 0; i < m_TransparentObjects.size(); i++) {
+				m_TransparentSortIndices[i] = i;
+			}
+
+			// Sort indices based on distance from camera
+			std::sort(m_TransparentSortIndices.begin(), m_TransparentSortIndices.end(),
+				[this, &cameraPosition](uint32_t a, uint32_t b) {
+					const DrawCommand& cmdA = m_TransparentObjects[a];
+					const DrawCommand& cmdB = m_TransparentObjects[b];
+
+					glm::vec3 posA(cmdA.transform[3]);
+					glm::vec3 posB(cmdB.transform[3]);
+
+					float distA = glm::distance2(posA, cameraPosition);
+					float distB = glm::distance2(posB, cameraPosition);
+
+					return distA > distB; // Back-to-front ordering
+				});
 		}
 	};
 

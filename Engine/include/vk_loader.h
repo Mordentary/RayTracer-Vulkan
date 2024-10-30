@@ -10,11 +10,16 @@
 namespace SE {
 	class Engine;
 	struct DescriptorAllocator;
-
+	struct Bounds {
+		glm::vec3 origin;
+		float sphereRadius;
+		glm::vec3 extents;
+	};
 	// Represents a surface within a mesh, associated with a material
 	struct Surface {
 		uint32_t startIndex{ 0 };
 		uint32_t indexCount{ 0 };
+		Bounds bounds;
 		Shared<MaterialInstance> material;
 	};
 

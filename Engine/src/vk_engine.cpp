@@ -1156,35 +1156,69 @@ namespace SE
 		//writer.writeBuffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 		//writer.updateSet(m_Device, globalDescriptor);
 
-		for (const DrawCommand& draw : m_MainRenderQueue.getOpaqueObjects()) {
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material.pipeline->pipeline);
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material.pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material.pipeline->layout, 1, 1, &draw.material.descriptorSet, 0, nullptr);
+		const MaterialPipeline* lastPipeline = nullptr;
+		const MaterialInstance* lastMaterial = nullptr;
+		VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
 
-			vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		auto draw = [&](const DrawCommand& r) {
+			if (&r.material != (lastMaterial)) {
+				lastMaterial = &r.material;
+				//rebind pipeline and descriptors if the material changed
+				if (r.material.pipeline != lastPipeline) {
+					lastPipeline = r.material.pipeline;
+					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material.pipeline->pipeline);
+					vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material.pipeline->layout, 0, 1,
+						&globalDescriptor, 0, nullptr);
 
-			GPUDrawPushConstants pushConstants;
-			pushConstants.vertexBufferAddress = draw.vertexBufferAddress;
-			pushConstants.worldMatrix = draw.transform;
-			vkCmdPushConstants(cmd, draw.material.pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+					VkViewport viewport = {};
+					viewport.x = 0;
+					viewport.y = 0;
+					viewport.width = static_cast<float>(m_DrawExtent.width);
+					viewport.height = static_cast<float>(m_DrawExtent.height);
+					viewport.minDepth = 0.f;
+					viewport.maxDepth = 1.f;
 
-			vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+					vkCmdSetViewport(cmd, 0, 1, &viewport);
+
+					VkRect2D scissor = {};
+					scissor.offset.x = 0;
+					scissor.offset.y = 0;
+					scissor.extent.width = m_DrawExtent.width;
+					scissor.extent.height = m_DrawExtent.height;
+
+					vkCmdSetScissor(cmd, 0, 1, &scissor);
+				}
+
+				vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material.pipeline->layout, 1, 1,
+					&r.material.descriptorSet, 0, nullptr);
+			}
+			//rebind index buffer if needed
+			if (r.indexBuffer != lastIndexBuffer) {
+				lastIndexBuffer = r.indexBuffer;
+				vkCmdBindIndexBuffer(cmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+			}
+			// calculate final mesh matrix
+			GPUDrawPushConstants push_constants;
+			push_constants.worldMatrix = r.transform;
+			push_constants.vertexBufferAddress = r.vertexBufferAddress;
+
+			vkCmdPushConstants(cmd, r.material.pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+
+			vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
+			//stats
+			stats.drawcall_count++;
+			stats.triangle_count += r.indexCount / 3;
+			};
+
+		m_MainRenderQueue.sort(m_Camera->getPosition());
+		for (size_t i = 0; i < m_MainRenderQueue.opaqueCount(); i++) {
+			const DrawCommand& drawCmd = m_MainRenderQueue.getOpaqueObject(i);
+			draw(drawCmd);
 		}
 
-		for (const DrawCommand& draw : m_MainRenderQueue.getTransparentObjects())
-		{
-			vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material.pipeline->pipeline);
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material.pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material.pipeline->layout, 1, 1, &draw.material.descriptorSet, 0, nullptr);
-
-			vkCmdBindIndexBuffer(cmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-
-			GPUDrawPushConstants pushConstants;
-			pushConstants.vertexBufferAddress = draw.vertexBufferAddress;
-			pushConstants.worldMatrix = draw.transform;
-			vkCmdPushConstants(cmd, draw.material.pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
-
-			vkCmdDrawIndexed(cmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+		for (size_t i = 0; i < m_MainRenderQueue.transparentCount(); i++) {
+			const DrawCommand& drawCmd = m_MainRenderQueue.getTransparentObject(i);
+			draw(drawCmd);
 		}
 
 		vkCmdEndRendering(cmd);

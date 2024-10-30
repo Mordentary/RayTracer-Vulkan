@@ -406,6 +406,19 @@ namespace SE {
 					newSurface.material = defaultEngineData.defaultMaterial;
 				}
 
+				//Bounds
+
+				glm::vec3 minpos = vertices[initialVertexIndex].position;
+				glm::vec3 maxpos = vertices[initialVertexIndex].position;
+				for (int i = initialVertexIndex; i < vertices.size(); i++) {
+					minpos = glm::min(minpos, vertices[i].position);
+					maxpos = glm::max(maxpos, vertices[i].position);
+				}
+				// calculate origin and extents from the min/max, use extent lenght for radius
+				newSurface.bounds.origin = (maxpos + minpos) / 2.f;
+				newSurface.bounds.extents = (maxpos - minpos) / 2.f;
+				newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
+
 				newMesh->addSurface(newSurface);
 			}
 
