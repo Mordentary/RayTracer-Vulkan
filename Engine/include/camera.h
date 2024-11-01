@@ -3,11 +3,13 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <SDL_events.h>
+#include <Editor.hpp>
 
 namespace SE {
 	class Camera {
 	public:
-		explicit Camera(
+		explicit Camera(const Editor::ViewportState* state,
+			SDL_Window* window,
 			const glm::vec3& position = glm::vec3(0.0f, 0.0f, 0.0f),
 			const glm::vec3& target = glm::vec3(0.0f, 0.0f, -1.0f),
 			float fov = 70.0f,
@@ -21,10 +23,10 @@ namespace SE {
 
 		// Input handling
 		void processKeyboard(const Uint8* state, float deltaTime);
-		void handleEvent(const SDL_Event& event);
+		void handleEvent(const SDL_Event& event, float deltaTime);
 
 		// Window management
-		void updateAspectRatio(float width, float height);
+		void updateAspectRatio(glm::vec2 viewportSize);
 
 		// Getters
 		[[nodiscard]] const glm::vec3& getPosition() const { return m_Position; }
@@ -44,6 +46,10 @@ namespace SE {
 		void updateVectors();
 		void updateViewMatrix();
 		void updateProjectionMatrix();
+		void rotateCamera(float rotX, float rotY);
+		bool isMouseInViewport(int mouseX, int mouseY);
+		void applyRotation(float deltaYaw, float deltaPitch);
+
 		glm::quat m_Orientation;
 		// Core state
 		glm::vec3 m_Position;
@@ -61,13 +67,16 @@ namespace SE {
 		float m_NearPlane{ 1000.f };
 		float m_FarPlane{ 0.1f };
 		float m_MovementSpeed{ 5.0f };
-		float m_MouseSensitivity{ 0.1f };
+		float m_MouseSensitivity{ 10.0f };
+
+		int m_LastMouseX, m_LastMouseY;
 
 		glm::vec2 m_LastMousePos;
 
+		SDL_Window* m_Window;
+		const Editor::ViewportState* m_ViewportState;
 		// Input state
 		bool m_IsRotating{ false };
-
 		// Cached matrices
 		glm::mat4 m_View{ 1.0f };
 		glm::mat4 m_Projection{ 1.0f };

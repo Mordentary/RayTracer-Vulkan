@@ -20,8 +20,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/euler_angles.hpp>
-#include <filesystem>
 #include <glm\gtx\norm.hpp>
+#include <filesystem>
 
 namespace SE
 {
@@ -29,6 +29,7 @@ namespace SE
 	struct MeshAsset;
 	struct LoadedGLTF;
 
+	class Editor;
 	class Engine;
 	// Resource cleanup queue
 	struct ResourceCleanupQueue
@@ -306,14 +307,6 @@ namespace SE
 		AllocatedBuffer sceneParameterBuffer;
 	};
 
-	struct EngineStats {
-		float frametime;
-		int triangle_count;
-		int drawcall_count;
-		float scene_update_time;
-		float mesh_draw_time;
-	};
-
 	// Frame overlap constant
 	constexpr unsigned int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -321,22 +314,14 @@ namespace SE
 	class Engine {
 	public:
 
-		VkDevice getDevice();
-		VkDescriptorSetLayout getSceneDescriptorLayout();
-		MaterialSystem& getMaterialSystem() { return m_MaterialSystem; };
-		const AllocatedImage& getDrawImage() { return m_DrawImage; };
-		const AllocatedImage& getDepthImage() { return m_DepthImage; };
-		VmaAllocator getVmaAllocator() { return m_Allocator; };
-		//const MaterialFactory& getMaterialTemplate() { return m_MaterialFactory; };
-
 		SINGULARITY_API static Engine& getInstance() {
 			static Engine instance;
 			return instance;
 		}
-
 		SINGULARITY_API void run();
 		SINGULARITY_API void cleanup();
 		void drawFrame();
+
 		GPUMeshBuffers uploadMesh(const std::span<uint32_t>& indices, const std::span<Vertex>& vertices);
 		AllocatedImage createImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
 		AllocatedImage createImage(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
@@ -356,6 +341,22 @@ namespace SE
 		};
 
 		DefaultData getDefaultEngineData() { return m_DefaultEngineData; };
+		VkDescriptorSetLayout getSceneDescriptorLayout() { return m_SceneDescriptorLayout; }
+		MaterialSystem& getMaterialSystem() { return m_MaterialSystem; };
+		const AllocatedImage& getDrawImage() { return m_DrawImage; };
+		const AllocatedImage& getDepthImage() { return m_DepthImage; };
+		VmaAllocator getVmaAllocator() { return m_Allocator; };
+		SDL_Window* getWindow() { return m_Window; }
+		VkPhysicalDevice getPhysicalDevice() { return m_PhysicalDevice; }
+		VkDevice getDevice() { return m_Device; }
+		VkQueue getGraphicsQueue() { return m_GraphicsQueue; }
+		const VkFormat& getSwapchainFormat() { return m_SwapchainImageFormat; }
+		VkExtent2D getSwapchainExtent() { return m_SwapchainExtent; }
+		VkImageView getDrawImageView() { return m_DrawImage.imageView; }
+		VkInstance getVkInstance() { return m_Instance; }
+
+		void setResizeRequest(bool request) { m_ResizeRequested = request; }
+
 	private:
 		Engine(const Engine&) = delete;
 		Engine(Engine&&) = delete;
@@ -376,7 +377,7 @@ namespace SE
 		GPUSceneData m_SceneData;
 		VkDescriptorSetLayout m_SceneDescriptorLayout;
 
-		VkExtent2D m_WindowExtent = { .width = 1920, .height = 1080 };
+		VkExtent2D m_WindowExtent = { .width = 2560, .height = 1440 };
 		struct SDL_Window* m_Window = nullptr;
 
 		std::vector<ComputeEffect> m_BackgroundEffects;
@@ -406,19 +407,16 @@ namespace SE
 		AllocatedImage m_DrawImage;
 		AllocatedImage m_DepthImage;
 		VkExtent2D m_DrawExtent;
-		float m_LastWindowWidth = 0;
-		float m_LastWindowHeight = 0;
 
-		glm::vec2 m_ViewpotrSize;
 		VkDescriptorSet m_BackgroundShaderDescriptorSet;
 		VkDescriptorSetLayout m_BackgroundShaderDescriptorLayout;
 
 		VkPipeline m_BackgroundPipeline;
 		VkPipelineLayout m_BackgroundPipelineLayout;
 
-		VkFence m_ImguiFence;
-		VkCommandBuffer m_ImguiCommandBuffer;
-		VkCommandPool m_ImguiCommandPool;
+		VkFence m_ImmediateSubmitCmdFence;
+		VkCommandBuffer m_ImmediateSubmitCmdBuffer;
+		VkCommandPool m_ImmediateSubmitCmdPool;
 
 		DefaultData m_DefaultEngineData;
 		RenderQueue m_MainRenderQueue;
@@ -427,7 +425,8 @@ namespace SE
 		std::unordered_map<std::string, Shared<LoadedGLTF>> m_LoadedNodes;
 
 		Shared<Camera> m_Camera;
-		EngineStats stats;
+		Scoped<Editor> m_Editor;
+
 	private:
 		void updateScene();
 
@@ -435,8 +434,8 @@ namespace SE
 
 		void immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
 		// Initialization functions
-		void resizeSwapchain();
-		void resizeDrawImage();
+		void resizeResources();
+		void resizeDrawImage(glm::vec2 viewportSize);
 
 		void initDefaultData();
 		void initVulkan();
@@ -446,18 +445,11 @@ namespace SE
 		void initSyncStructures();
 		void initPipelines();
 		void initBackgroundPipelines();
-		void initImgui();
 
-		//void handleResize();
-		bool m_ShowViewport = true;
-		bool m_ShowMetricsWindow = false;
-		bool m_ShowStatsWindow = true;
-		bool m_ShowStyleEditor = false;
-		VkDescriptorSet m_ImguiDrawImageDescriptor = VK_NULL_HANDLE;  // Add this
 		// Drawing functions
 		void drawBackground(VkCommandBuffer cmd);
 		void drawGeometry(VkCommandBuffer cmd);
-		void drawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
+		//void drawImgui(VkCommandBuffer cmd, VkImageView targetImageView);
 
 		// Resource management
 		void createSwapchain(uint32_t width, uint32_t height);

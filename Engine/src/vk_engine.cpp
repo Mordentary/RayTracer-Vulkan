@@ -3,17 +3,22 @@
 #include "vk_loader.h"
 #include "vk_images.h"
 #include "vk_pipelines.h"
+#include "Editor.hpp"
 
 #include <sstream>
 #include <string>
 #include <regex>
 
-#include <imgui.h>
-#include <imgui_impl_sdl2.h>
-#include <imgui_impl_vulkan.h>
 #include <VkBootstrap.h>
 #include <vk_mem_alloc.h>
-#include <imgui_internal.h>
+#include <imgui_impl_vulkan.h>
+
+namespace windows
+{
+#define NOMINMAX
+#include<Windows.h>
+}
+
 namespace SE
 {
 #ifdef _DEBUG
@@ -83,7 +88,6 @@ namespace SE
 		std::istringstream iss(message);
 		std::string line;
 		while (std::getline(iss, line)) {
-			Engine* loadedEngine = nullptr;
 			// Apply regex-based highlighting
 			auto highlightRegex = [&](const std::regex& pattern, const fmt::text_style& style) {
 				std::string newLine;
@@ -130,16 +134,6 @@ namespace SE
 		//cleanup();
 	}
 
-	VkDevice Engine::getDevice()
-	{
-		return m_Device;
-	}
-
-	VkDescriptorSetLayout Engine::getSceneDescriptorLayout()
-	{
-		return m_SceneDescriptorLayout;
-	}
-
 	Engine* loadedEngine;
 	// Initialization
 	void Engine::init()
@@ -148,9 +142,11 @@ namespace SE
 		assert(loadedEngine == nullptr);
 		loadedEngine = this;
 
+		windows::SetProcessDPIAware();
 		SDL_Init(SDL_INIT_VIDEO);
 
-		SDL_WindowFlags windowFlags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE);
+		SDL_WindowFlags windowFlags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE |
+			SDL_WINDOW_ALLOW_HIGHDPI);
 
 		m_Window = SDL_CreateWindow(
 			"Vulkan Engine",
@@ -159,8 +155,6 @@ namespace SE
 			m_WindowExtent.width,
 			m_WindowExtent.height,
 			windowFlags);
-
-		m_Camera = CreateShared<Camera>();
 		initVulkan();
 
 		initSwapchain();
@@ -179,7 +173,9 @@ namespace SE
 
 		initScene();
 
-		initImgui();
+		m_Editor = CreateScoped<Editor>(this);
+		m_Editor->init();
+		m_Camera = CreateShared<Camera>(m_Editor->getViewportState(), m_Window);
 
 		m_IsInitialized = true;
 		Timer::getInstance().reset();
@@ -191,6 +187,7 @@ namespace SE
 		if (m_IsInitialized)
 		{
 			vkDeviceWaitIdle(m_Device);
+
 			m_MaterialSystem.cleanup(m_Device);
 			m_LoadedNodes.clear();
 			for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -202,6 +199,7 @@ namespace SE
 
 				m_Frames[i].cleanupQueue.executeCleanup();
 			}
+			m_Editor.reset();
 			m_MainCleanupQueue.executeCleanup();
 
 			destroySwapchain();
@@ -261,27 +259,26 @@ namespace SE
 			VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 		drawGeometry(cmd);
 
-		// After geometry rendering, transition to sampled for ImGui viewport
 		vkUtil::transitionImage(cmd, m_DrawImage.image,
 			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		//// Draw to swapchain
 		//vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex],
 		//	VK_IMAGE_LAYOUT_UNDEFINED,
-		//	VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		//	VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL);
 
-		//// Blit rendered image to swapchain
+		// Blit rendered image to swapchain
 		//vkUtil::copyImageToImage(cmd,
 		//	m_DrawImage.image,
 		//	m_SwapchainImages[swapchainImageIndex],
-		//	m_DrawExtent, m_DrawExtent);
+		//	m_SwapchainExtent, m_SwapchainExtent);
 
-		// Draw ImGui
+		 //Draw ImGui
 		vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex],
 			VK_IMAGE_LAYOUT_UNDEFINED,
 			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-		drawImgui(cmd, m_SwapchainImageViews[swapchainImageIndex]);
+		//drawImgui(cmd, m_SwapchainImageViews[swapchainImageIndex]);
+		m_Editor->render(cmd, m_SwapchainImageViews[swapchainImageIndex]);
 
 		// Prepare for presentation
 		vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex],
@@ -324,7 +321,6 @@ namespace SE
 		bool bQuit = false;
 		SDL_Event e;
 		auto lastFrame = std::chrono::high_resolution_clock::now();
-		bool isViewportHovered = false;
 		while (!bQuit) {
 			Timer::getInstance().beginFrame();
 			auto currentFrame = std::chrono::high_resolution_clock::now();
@@ -333,7 +329,7 @@ namespace SE
 
 			// Handle events
 			while (SDL_PollEvent(&e) != 0) {
-				ImGui_ImplSDL2_ProcessEvent(&e);
+				m_Editor->handleEvent(e);
 
 				if (e.type == SDL_QUIT) {
 					bQuit = true;
@@ -354,16 +350,14 @@ namespace SE
 					}
 				}
 				// Only pass events to camera if ImGui isn't capturing them and viewport is hovered
-				if (isViewportHovered)
-					m_Camera->handleEvent(e);
+				if (m_Editor->isViewportHovered()) {
+					m_Camera->handleEvent(e, deltaTime);
+				}
 			}
 
-			if (isViewportHovered && !ImGui::GetIO().WantCaptureKeyboard) {
+			if (m_Editor->isViewportHovered() && !ImGui::GetIO().WantCaptureKeyboard) {
 				const Uint8* keyboardState = SDL_GetKeyboardState(nullptr);
 				m_Camera->processKeyboard(keyboardState, deltaTime);
-			}
-			if (m_ResizeRequested) {
-				resizeSwapchain();
 			}
 
 			if (m_StopRendering) {
@@ -371,120 +365,25 @@ namespace SE
 				continue;
 			}
 
-			// Start ImGui frame
-			ImGui_ImplVulkan_NewFrame();
-			ImGui_ImplSDL2_NewFrame();
-			ImGui::NewFrame();
-
-			// Create the dockspace
-			const ImGuiViewport* viewport = ImGui::GetMainViewport();
-			ImGui::SetNextWindowPos(viewport->WorkPos);
-			ImGui::SetNextWindowSize(viewport->WorkSize);
-			ImGui::SetNextWindowViewport(viewport->ID);
-
-			ImGuiWindowFlags window_flags = ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_MenuBar;
-			window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse;
-			window_flags |= ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-			window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-			ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-
-			ImGui::Begin("DockSpace", nullptr, window_flags);
-			ImGui::PopStyleVar(3);
-
-			ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f));
-
-			if (ImGui::BeginMenuBar()) {
-				if (ImGui::BeginMenu("Windows")) {
-					ImGui::MenuItem("Main Viewport", NULL, &m_ShowViewport);
-					ImGui::MenuItem("Metrics", NULL, &m_ShowMetricsWindow);
-					ImGui::MenuItem("Style Editor", NULL, &m_ShowStyleEditor);
-					ImGui::MenuItem("Stats", NULL, &m_ShowStatsWindow);
-					ImGui::EndMenu();
-				}
-				ImGui::EndMenuBar();
+			if (m_ResizeRequested) {
+				resizeResources();
 			}
+			m_Editor->beginFrame();
+			//Your other windows
+			//if (ImGui::Begin("Background", nullptr)) {
+			//	ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.f);
+			//	ComputeEffect& selected = m_BackgroundEffects[m_ActiveBackgroundEffect];
+			//	ImGui::Text("Selected effect: %s", selected.name.c_str());
+			//	ImGui::SliderInt("Effect Index", &m_ActiveBackgroundEffect, 0,
+			//		static_cast<int>(m_BackgroundEffects.size()) - 1);
 
-			ImGui::End(); // DockSpace
-
-			if (m_ShowViewport)
-			{
-				ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-				if (ImGui::Begin("Viewport", &m_ShowViewport,
-					ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse))
-				{
-					// Get current viewport size
-					ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-					isViewportHovered = ImGui::IsWindowHovered();
-					// Apply minimum size to prevent tiny images
-					float newWidth = std::max(viewportSize.x, 32.0f);
-					float newHeight = std::max(viewportSize.y, 32.0f);
-
-					// Check if size changed significantly
-					const float resizeThreshold = 1.0f;  // Prevents constant minor resizing
-					bool sizeChanged =
-						std::abs(m_ViewpotrSize.x - newWidth) > resizeThreshold ||
-						std::abs(m_ViewpotrSize.y - newHeight) > resizeThreshold;
-
-					if (sizeChanged && !ImGui::IsMouseDown(ImGuiMouseButton_Left) && !ImGui::IsMouseDragging(ImGuiMouseButton_Left))
-					{
-						m_ViewpotrSize.x = newWidth;
-						m_ViewpotrSize.y = newHeight;
-						resizeDrawImage();  // This will use the new dimensions
-					}
-
-					// Draw the viewport image
-					ImGui::Image(
-						(ImTextureID)(uint64_t)m_ImguiDrawImageDescriptor,
-						viewportSize,
-						ImVec2(0, 0),
-						ImVec2(1, 1),
-						ImVec4(1, 1, 1, 1),
-						ImVec4(0, 0, 0, 0));
-				}
-				ImGui::End();
-				ImGui::PopStyleVar();
-			}
-
-			// Your other windows
-			if (ImGui::Begin("Background", nullptr)) {
-				ImGui::SliderFloat("Render Scale", &m_RenderScale, 0.3f, 1.f);
-				ComputeEffect& selected = m_BackgroundEffects[m_ActiveBackgroundEffect];
-				ImGui::Text("Selected effect: %s", selected.name.c_str());
-				ImGui::SliderInt("Effect Index", &m_ActiveBackgroundEffect, 0,
-					static_cast<int>(m_BackgroundEffects.size()) - 1);
-
-				ImGui::InputFloat4("data1", glm::value_ptr(selected.pushConstants.data1));
-				ImGui::InputFloat4("data2", glm::value_ptr(selected.pushConstants.data2));
-				ImGui::InputFloat4("data3", glm::value_ptr(selected.pushConstants.data3));
-				ImGui::InputFloat4("data4", glm::value_ptr(selected.pushConstants.data4));
-			}
-			ImGui::End();
-
-			if (ImGui::Begin("Debug", nullptr)) {
-				static bool showTimer = true;
-				if (ImGui::Button("Toggle Performance Timer")) {
-					showTimer = !showTimer;
-				}
-
-				if (showTimer) {
-					Timer::getInstance().drawImGuiWindow(&showTimer);
-				}
-			}
-			ImGui::End();
-
-			// Demo windows
-			if (m_ShowMetricsWindow)
-				ImGui::ShowMetricsWindow(&m_ShowMetricsWindow);
-			if (m_ShowStyleEditor) {
-				ImGui::Begin("Style Editor", &m_ShowStyleEditor);
-				ImGui::ShowStyleEditor();
-				ImGui::End();
-			}
-			ImGui::Render();
+			//	ImGui::InputFloat4("data1", glm::value_ptr(selected.pushConstants.data1));
+			//	ImGui::InputFloat4("data2", glm::value_ptr(selected.pushConstants.data2));
+			//	ImGui::InputFloat4("data3", glm::value_ptr(selected.pushConstants.data3));
+			//	ImGui::InputFloat4("data4", glm::value_ptr(selected.pushConstants.data4));
+			//}
+			//ImGui::End();
+			m_Editor->endFrame();
 
 			// Update and render scene
 			{
@@ -495,13 +394,6 @@ namespace SE
 			{
 				SCOPED_TIMER_COLORED("Frame Draw", ImVec4(0.8f, 0.2f, 0.2f, 1.0f));
 				drawFrame();
-			}
-
-			// Finish ImGui Frame
-			if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-			{
-				ImGui::UpdatePlatformWindows();
-				ImGui::RenderPlatformWindowsDefault();
 			}
 
 			Timer::getInstance().endFrame();
@@ -534,10 +426,10 @@ namespace SE
 	// Immediate Submit Helper
 	void Engine::immediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function)
 	{
-		VK_CHECK(vkResetFences(m_Device, 1, &m_ImguiFence));
-		VK_CHECK(vkResetCommandBuffer(m_ImguiCommandBuffer, 0));
+		VK_CHECK(vkResetFences(m_Device, 1, &m_ImmediateSubmitCmdFence));
+		VK_CHECK(vkResetCommandBuffer(m_ImmediateSubmitCmdBuffer, 0));
 
-		VkCommandBuffer cmd = m_ImguiCommandBuffer;
+		VkCommandBuffer cmd = m_ImmediateSubmitCmdBuffer;
 
 		VkCommandBufferBeginInfo cmdBeginInfo = vkInit::commandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 		VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
@@ -551,38 +443,49 @@ namespace SE
 
 		// Submit command buffer to the queue and execute it.
 		// imguiFence will now block until the graphic commands finish execution
-		VK_CHECK(vkQueueSubmit2(m_GraphicsQueue, 1, &submit, m_ImguiFence));
+		VK_CHECK(vkQueueSubmit2(m_GraphicsQueue, 1, &submit, m_ImmediateSubmitCmdFence));
 
-		VK_CHECK(vkWaitForFences(m_Device, 1, &m_ImguiFence, VK_TRUE, 9999999999));
+		VK_CHECK(vkWaitForFences(m_Device, 1, &m_ImmediateSubmitCmdFence, VK_TRUE, 9999999999));
 	}
 
 	// Resize Swapchain
-	void Engine::resizeSwapchain()
+	void Engine::resizeResources()
 	{
 		int width, height;
 		SDL_GetWindowSize(m_Window, &width, &height);
-		m_WindowExtent.width = static_cast<uint32_t>(width);
-		m_WindowExtent.height = static_cast<uint32_t>(height);
 
+		//if (m_WindowExtent.width != width || m_WindowExtent.height != height)
+		//{
 		vkDeviceWaitIdle(m_Device);
 
-		// Cleanup old swapchain
+		m_WindowExtent.width = static_cast<uint32_t>(width);
+		m_WindowExtent.height = static_cast<uint32_t>(height);
+		m_SwapchainExtent = m_WindowExtent;
 		destroySwapchain();
 
-		// Create new swapchain with updated dimensions
-		createSwapchain(m_WindowExtent.width, m_WindowExtent.height);
+		createSwapchain(m_SwapchainExtent.width, m_SwapchainExtent.height);
+		//}
 
-		// Resize draw image if needed
-		resizeDrawImage();
+		glm::vec2 viewportSize = m_Editor->getViewportSize();
 
-		m_Camera->updateAspectRatio(m_ViewpotrSize.x, m_ViewpotrSize.y);
+		resizeDrawImage(viewportSize);
+		m_Camera->updateAspectRatio(viewportSize);
 		m_ResizeRequested = false;
 	}
 
-	void Engine::resizeDrawImage() {
+	void Engine::resizeDrawImage(glm::vec2 viewportSize) {
 		// Wait for all GPU operations to complete before resizing
-		VK_CHECK(vkDeviceWaitIdle(m_Device));
 
+		// Calculate new draw extent based on viewport size
+		VkExtent2D newDrawExtent = {
+			static_cast<uint32_t>(viewportSize.x * m_RenderScale),
+			static_cast<uint32_t>(viewportSize.y * m_RenderScale)
+		};
+
+		if (newDrawExtent.width == m_DrawExtent.width &&
+			newDrawExtent.height == m_DrawExtent.height) {
+			return;
+		}
 		// Destroy old resources
 		if (m_DrawImage.imageView != VK_NULL_HANDLE) {
 			vkDestroyImageView(m_Device, m_DrawImage.imageView, nullptr);
@@ -602,21 +505,10 @@ namespace SE
 			m_DepthImage.image = VK_NULL_HANDLE;
 		}
 
-		// Calculate new draw extent based on viewport size
-		VkExtent2D newDrawExtent = {
-			static_cast<uint32_t>(m_ViewpotrSize.x * m_RenderScale),
-			static_cast<uint32_t>(m_ViewpotrSize.y * m_RenderScale)
-		};
-
 		// Apply reasonable size limits
 		const uint32_t MAX_DIMENSION = 8192;  // Typical max texture dimension
 		newDrawExtent.width = std::clamp(newDrawExtent.width, 1u, MAX_DIMENSION);
 		newDrawExtent.height = std::clamp(newDrawExtent.height, 1u, MAX_DIMENSION);
-
-		if (newDrawExtent.width == m_DrawExtent.width &&
-			newDrawExtent.height == m_DrawExtent.height) {
-			return;
-		}
 
 		m_DrawExtent = newDrawExtent;
 
@@ -676,16 +568,7 @@ namespace SE
 		if (result != VK_SUCCESS) {
 			throw std::runtime_error("Failed to create depth image view");
 		}
-
-		if (m_ImguiDrawImageDescriptor != VK_NULL_HANDLE) {
-			ImGui_ImplVulkan_RemoveTexture(m_ImguiDrawImageDescriptor);
-		}
-
-		m_ImguiDrawImageDescriptor = ImGui_ImplVulkan_AddTexture(
-			m_DefaultEngineData.samplerNearest,
-			m_DrawImage.imageView,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
+		m_Editor->updateViewportImage(m_DrawImage.imageView);
 		// **Update m_BackgroundShaderDescriptorSet**
 		{
 			DescriptorWriter writer;
@@ -699,6 +582,7 @@ namespace SE
 			writer.updateSet(m_Device, m_BackgroundShaderDescriptorSet);
 		}
 	}
+
 	// Initialize Default Data
 	void Engine::initDefaultData()
 	{
@@ -898,8 +782,8 @@ namespace SE
 			m_WindowExtent.height,
 			1
 		};
-		m_DrawExtent.width = static_cast<uint32_t>(1);
-		m_DrawExtent.height = static_cast<uint32_t>(1);
+		m_DrawExtent.width = static_cast<uint32_t>(m_WindowExtent.width);
+		m_DrawExtent.height = static_cast<uint32_t>(m_WindowExtent.height);
 		// draw image creation
 		m_DrawImage.format = VK_FORMAT_R16G16B16A16_SFLOAT;
 		m_DrawImage.extent = renderExtent;
@@ -974,14 +858,14 @@ namespace SE
 			VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo, &m_Frames[i].mainCommandBuffer));
 		}
 
-		VK_CHECK(vkCreateCommandPool(m_Device, &commandPoolInfo, nullptr, &m_ImguiCommandPool));
+		VK_CHECK(vkCreateCommandPool(m_Device, &commandPoolInfo, nullptr, &m_ImmediateSubmitCmdPool));
 		// Allocate the command buffer for immediate submits
-		VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::commandBufferAllocateInfo(m_ImguiCommandPool, 1);
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::commandBufferAllocateInfo(m_ImmediateSubmitCmdPool, 1);
 
-		VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo, &m_ImguiCommandBuffer));
+		VK_CHECK(vkAllocateCommandBuffers(m_Device, &cmdAllocInfo, &m_ImmediateSubmitCmdBuffer));
 
 		m_MainCleanupQueue.enqueueCleanup([=]() {
-			vkDestroyCommandPool(m_Device, m_ImguiCommandPool, nullptr);
+			vkDestroyCommandPool(m_Device, m_ImmediateSubmitCmdPool, nullptr);
 			});
 	}
 
@@ -1069,8 +953,8 @@ namespace SE
 			VK_CHECK(vkCreateSemaphore(m_Device, &semaphoreCreateInfo, nullptr, &m_Frames[i].swapchainSemaphore));
 			VK_CHECK(vkCreateSemaphore(m_Device, &semaphoreCreateInfo, nullptr, &m_Frames[i].renderSemaphore));
 		}
-		VK_CHECK(vkCreateFence(m_Device, &fenceCreateInfo, nullptr, &m_ImguiFence));
-		m_MainCleanupQueue.enqueueCleanup([=]() { vkDestroyFence(m_Device, m_ImguiFence, nullptr); });
+		VK_CHECK(vkCreateFence(m_Device, &fenceCreateInfo, nullptr, &m_ImmediateSubmitCmdFence));
+		m_MainCleanupQueue.enqueueCleanup([=]() { vkDestroyFence(m_Device, m_ImmediateSubmitCmdFence, nullptr); });
 	}
 
 	// draw Background
@@ -1095,24 +979,6 @@ namespace SE
 	// draw Geometry
 	void Engine::drawGeometry(VkCommandBuffer cmd)
 	{
-		//for (auto& img : m_LoadedNodes["structure"]->getImages())
-		//{
-		//	vkUtil::transitionImage(cmd, img.second.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		//}
-
-		//vkUtil::transitionImage(cmd, m_DefaultEngineData.whiteImage.image,
-		//	VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		//vkUtil::transitionImage(cmd, m_DefaultEngineData.blackImage.image,
-		//	VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		//vkUtil::transitionImage(cmd, m_DefaultEngineData.greyImage.image,
-		//	VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		//vkUtil::transitionImage(cmd, m_DefaultEngineData.errorCheckerboardImage.image,
-		//	VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-		//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
 		// VkClearValue clearVal{ .color {0,0,0,0} };
 		VkRenderingAttachmentInfo colorAttach = vkInit::attachmentInfo(m_DrawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		VkRenderingAttachmentInfo depthAttach = vkInit::depthAttachmentInfo(m_DepthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -1151,10 +1017,6 @@ namespace SE
 		vkCmdSetScissor(cmd, 0, 1, &scissor);
 
 		VkDescriptorSet globalDescriptor = getCurrentFrame().sceneDescriptorSet;
-
-		//DescriptorWriter writer;
-		//writer.writeBuffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		//writer.updateSet(m_Device, globalDescriptor);
 
 		const MaterialPipeline* lastPipeline = nullptr;
 		const MaterialInstance* lastMaterial = nullptr;
@@ -1205,9 +1067,6 @@ namespace SE
 			vkCmdPushConstants(cmd, r.material.pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
 
 			vkCmdDrawIndexed(cmd, r.indexCount, 1, r.firstIndex, 0, 0);
-			//stats
-			stats.drawcall_count++;
-			stats.triangle_count += r.indexCount / 3;
 			};
 
 		m_MainRenderQueue.sort(m_Camera->getPosition());
@@ -1310,105 +1169,19 @@ namespace SE
 			});
 	}
 
-	// Initialize ImGui
-	void Engine::initImgui() {
-		// Create descriptor pool for IMGUI
-		VkDescriptorPoolSize pool_sizes[] = {
-			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
-		};
-
-		VkDescriptorPoolCreateInfo pool_info = {};
-		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-		pool_info.maxSets = 1000;
-		pool_info.poolSizeCount = std::size(pool_sizes);
-		pool_info.pPoolSizes = pool_sizes;
-
-		VkDescriptorPool imguiPool;
-		VK_CHECK(vkCreateDescriptorPool(m_Device, &pool_info, nullptr, &imguiPool));
-
-		// Initialize ImGui
-		IMGUI_CHECKVERSION();
-		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO();
-
-		// Enable docking and viewports
-		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-		io.ConfigWindowsMoveFromTitleBarOnly = false;  // Allow dragging from anywhere in the window
-
-		// Setup style
-		ImGui::StyleColorsDark();
-		ImGuiStyle& style = ImGui::GetStyle();
-		style.WindowRounding = 5.0f;      // Rounded corners
-		style.FrameRounding = 4.0f;
-		style.GrabRounding = 4.0f;
-		style.WindowBorderSize = 1.0f;    // Visible borders
-		style.FrameBorderSize = 1.0f;
-		style.WindowPadding = ImVec2(8, 8);
-
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-			style.Colors[ImGuiCol_WindowBg].w = 0.9f;  // Slightly transparent windows
-		}
-
-		// Setup platform/renderer backends
-		ImGui_ImplSDL2_InitForVulkan(m_Window);
-
-		ImGui_ImplVulkan_InitInfo init_info = {};
-		init_info.Instance = m_Instance;
-		init_info.PhysicalDevice = m_PhysicalDevice;
-		init_info.Device = m_Device;
-		init_info.Queue = m_GraphicsQueue;
-		init_info.DescriptorPool = imguiPool;
-		init_info.MinImageCount = 3;
-		init_info.ImageCount = 3;
-		init_info.UseDynamicRendering = true;
-		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
-
-		init_info.PipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-		init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-		init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_SwapchainImageFormat;
-
-		ImGui_ImplVulkan_Init(&init_info);
-		ImGui_ImplVulkan_CreateFontsTexture();
-
-		m_ImguiDrawImageDescriptor = ImGui_ImplVulkan_AddTexture(
-			m_DefaultEngineData.samplerNearest,
-			m_DrawImage.imageView,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-		m_MainCleanupQueue.enqueueCleanup([=]() {
-			vkDeviceWaitIdle(m_Device);
-			ImGui_ImplVulkan_Shutdown();
-			ImGui_ImplSDL2_Shutdown();
-			ImGui::DestroyContext();
-			vkDestroyDescriptorPool(m_Device, imguiPool, nullptr);
-			});
-	}
-
 	// draw ImGui
-	void Engine::drawImgui(VkCommandBuffer cmd, VkImageView targetImageView)
-	{
-		VkRenderingAttachmentInfo colorAttachment = vkInit::attachmentInfo(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	//void Engine::drawImgui(VkCommandBuffer cmd, VkImageView targetImageView)
+	//{
+	//	VkRenderingAttachmentInfo colorAttachment = vkInit::attachmentInfo(targetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-		VkRenderingInfo renderInfo = vkInit::renderingInfo(m_SwapchainExtent, &colorAttachment, nullptr);
+	//	VkRenderingInfo renderInfo = vkInit::renderingInfo(m_SwapchainExtent, &colorAttachment, nullptr);
 
-		vkCmdBeginRendering(cmd, &renderInfo);
+	//	vkCmdBeginRendering(cmd, &renderInfo);
 
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
+	//	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
 
-		vkCmdEndRendering(cmd);
-	}
+	//	vkCmdEndRendering(cmd);
+	//}
 
 	// Create Image
 	AllocatedImage Engine::createImage(VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped)
@@ -1605,97 +1378,6 @@ namespace SE
 		}
 	}
 
-	//// Build Pipeline for Metallic-Roughness Material
-	//void MaterialFactory::buildPipeline(Engine* engine)
-	//{
-	//	VkShaderModule meshFragShader;
-	//	if (!vkUtil::loadShaderModule("shaders/mesh.frag.spv", engine->getDevice(), &meshFragShader)) {
-	//		fmt::print("Error when building the triangle fragment shader module\n");
-	//	}
-
-	//	VkShaderModule meshVertexShader;
-	//	if (!vkUtil::loadShaderModule("shaders/mesh.vert.spv", engine->getDevice(), &meshVertexShader)) {
-	//		fmt::print("Error when building the triangle vertex shader module\n");
-	//	}
-
-	//	VkPushConstantRange matrixRange{};
-	//	matrixRange.offset = 0;
-	//	matrixRange.size = sizeof(GPUDrawPushConstants);
-	//	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
-	//	DescriptorLayoutBuilder layoutBuilder;
-	//	layoutBuilder.addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	//	layoutBuilder.addBinding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	//	layoutBuilder.addBinding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-	//	materialDescriptorLayout = layoutBuilder.build(engine->getDevice(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-
-	//	VkDescriptorSetLayout layouts[] = { engine->m_SceneDescriptorLayout, materialDescriptorLayout };
-
-	//	VkPipelineLayoutCreateInfo meshLayoutInfo = vkInit::pipelineLayoutCreateInfo();
-	//	meshLayoutInfo.setLayoutCount = 2;
-	//	meshLayoutInfo.pSetLayouts = layouts;
-	//	meshLayoutInfo.pPushConstantRanges = &matrixRange;
-	//	meshLayoutInfo.pushConstantRangeCount = 1;
-
-	//	VkPipelineLayout newLayout;
-	//	VK_CHECK(vkCreatePipelineLayout(engine->getDevice(), &meshLayoutInfo, nullptr, &newLayout));
-
-	//	opaquePipeline.layout = newLayout;
-	//	transparentPipeline.layout = newLayout;
-
-	//	// Build the stage-create-info for both vertex and fragment stages. This lets
-	//	// the pipeline know the shader modules per stage
-	//	PipelineBuilder pipelineBuilder;
-	//	opaquePipeline.pipeline = pipelineBuilder.setShaders(meshVertexShader, meshFragShader)
-	//		.setInputTopology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-	//		.setPolygonMode(VK_POLYGON_MODE_FILL)
-	//		.setCullMode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE)
-	//		.setMultisamplingNone()
-	//		.disableBlending()
-	//		.enableDepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL)
-	//		.setColorAttachmentFormat(engine->m_DrawImage.format)
-	//		.setDepthFormat(engine->m_DepthImage.format)
-	//		.setPipelineLayout(newLayout).build(engine->getDevice());
-
-	//	// Create the transparent variant
-	//	transparentPipeline.pipeline = pipelineBuilder.enableBlendingAdditive().
-	//		enableDepthTest(false, VK_COMPARE_OP_GREATER_OR_EQUAL).build(engine->getDevice());
-
-	//	// Destroy shader modules properly
-	//	vkDestroyShaderModule(engine->getDevice(), meshFragShader, nullptr);
-	//	vkDestroyShaderModule(engine->getDevice(), meshVertexShader, nullptr);
-	//}
-
-	//// Clear Resources (Placeholder)
-	//void MaterialFactory::clearResources(VkDevice device)
-	//{
-	//}
-
-	//// Write Material
-	//MaterialInstance MaterialFactory::createMaterial(VkDevice device, MaterialPass pass, const Resources& resources, DescriptorAllocator& descriptorAllocator)
-	//{
-	//	MaterialInstance matData;
-	//	matData.passType = pass;
-	//	if (pass == MaterialPass::Transparent) {
-	//		matData.pipeline = &transparentPipeline;
-	//	}
-	//	else {
-	//		matData.pipeline = &opaquePipeline;
-	//	}
-
-	//	matData.descriptorSet = descriptorAllocator.allocate(device, materialDescriptorLayout);
-
-	//	descriptorWriter.clear();
-	//	descriptorWriter.writeBuffer(0, resources.dataBuffer, sizeof(Constants), resources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	//	descriptorWriter.writeImage(1, resources.colorImage.imageView, resources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	//	descriptorWriter.writeImage(2, resources.metalRoughImage.imageView, resources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-
-	//	descriptorWriter.updateSet(device, matData.descriptorSet);
-
-	//	return matData;
-	//}
-
 	void MaterialSystem::initialize(Engine* engine) {
 		createDescriptorLayout(engine);
 		buildPipelines(engine);
@@ -1801,54 +1483,7 @@ namespace SE
 		vkDestroyShaderModule(engine->getDevice(), meshVertShader, nullptr);
 		vkDestroyShaderModule(engine->getDevice(), meshFragShader, nullptr);
 	}
-	//MaterialInstance MaterialFactory::createFromGLTF(
-	//	Engine* engine,
-	//	const fastgltf::Material& gltfMat,
-	//	Constants* constantsBuffer,
-	//	uint32_t materialIndex,
-	//	const Resources& defaultResources,
-	//	VkBuffer uniformBuffer
-	//)
-	//{
-	//	// Fill constants
-	//	Constants constants;
-	//	constants.baseColorFactor = glm::vec4(
-	//		gltfMat.pbrData.baseColorFactor[0],
-	//		gltfMat.pbrData.baseColorFactor[1],
-	//		gltfMat.pbrData.baseColorFactor[2],
-	//		gltfMat.pbrData.baseColorFactor[3]
-	//	);
-	//	constants.metallicRoughnessFactors = glm::vec4(
-	//		gltfMat.pbrData.metallicFactor,
-	//		gltfMat.pbrData.roughnessFactor,
-	//		0.0f, 0.0f
-	//	);
-	//	// Set other constants as needed
 
-	//	// Write constants to the buffer
-	//	constantsBuffer[materialIndex] = constants;
-
-	//	// Create resources, starting with defaults
-	//	Resources resources = defaultResources;
-	//	resources.uniformBuffer = uniformBuffer;
-	//	resources.uniformBufferOffset = static_cast<uint32_t>(materialIndex * sizeof(Constants));
-
-	//	// Override textures if present in GLTF material
-	//	// Assume you have functions to retrieve textures and samplers from loaded data
-	//	if (gltfMat.pbrData.baseColorTexture.has_value()) {
-	//		size_t textureIndex = gltfMat.pbrData.baseColorTexture->textureIndex;
-	//		resources.albedoTexture = /* Retrieve texture from loadedTextures using textureIndex */;
-	//		resources.sampler = /* Retrieve sampler from loadedSamplers using textureIndex */;
-	//	}
-
-	//	// Determine the material pass type
-	//	MaterialPass passType = (gltfMat.alphaMode == fastgltf::AlphaMode::Blend)
-	//		? MaterialPass::Transparent
-	//		: MaterialPass::MainColor;
-
-	//	// Create and return the material instance
-	//	return createInstance(engine, passType, constants, resources);
-	//}
 	MaterialInstance MaterialFactory::createInstance(
 		Engine* engine,
 		MaterialPass pass,
