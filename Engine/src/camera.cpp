@@ -30,47 +30,49 @@ namespace SE {
 			if (std::abs(deltaYaw) < MIN_DELTA) deltaYaw = 0.0f;
 			if (std::abs(deltaPitch) < MIN_DELTA) deltaPitch = 0.0f;
 		}
-
-		// Helper function to ensure quaternion stability
-		glm::quat stabilizeQuaternion(const glm::quat& q) {
-			glm::quat normalized = glm::normalize(q);
-
-			// Ensure w component is positive to prevent sign flips
-			if (normalized.w < 0.0f) {
-				normalized = -normalized;
-			}
-
-			return normalized;
-		}
 	}
 
 	Camera::Camera(const Editor::ViewportState* state, SDL_Window* window, const glm::vec3& position,
 		const glm::vec3& target, float fov, float aspectRatio)
 		: m_Position(position)
 		, m_Fov(clampFov(fov))
-		, m_AspectRatio(clampAspectRatio(aspectRatio))
+		, m_AspectRatio(clampAspectRatio(state->availableSpace.x / state->availableSpace.y))
 		, m_ViewportState(state)
 		, m_Window(window)
 	{
-		// Calculate initial yaw & pitch from target
-		glm::vec3 direction = glm::normalize(target - position);
-		m_Pitch = glm::degrees(asin(glm::clamp(direction.y, -1.0f, 1.0f)));
-		m_Yaw = glm::degrees(atan2(direction.z, direction.x));
+		glm::vec3 forward = glm::vec3(0.0f, 0.0f, -1.0f);
+		glm::vec3 direction = target - m_Position;
 
-		// Initialize orientation quaternion
-		m_Orientation = stabilizeQuaternion(
-			glm::quat(glm::vec3(glm::radians(-m_Pitch), glm::radians(-m_Yaw), 0.0f))
-		);
+		float dot = glm::dot(forward, direction);
+
+		if (glm::abs(dot + 1.0f) < 0.000001f) {
+			// Vector points exactly opposite, rotate 180 degrees around up vector
+			m_Orientation = glm::angleAxis(glm::pi<float>(), glm::vec3(0.0f, 1.0f, 0.0f));
+		}
+		else {
+			// Create quaternion from the two vectors
+			glm::vec3 rotationAxis = glm::cross(forward, direction);
+			if (glm::length2(rotationAxis) < 0.000001f) {
+				// Vectors are parallel, no rotation needed
+				m_Orientation = glm::quat(1.0f, 0.0f, 0.0f, 0.0f);
+			}
+			else {
+				float rotationAngle = std::acos(dot);
+				m_Orientation = glm::angleAxis(rotationAngle, glm::normalize(rotationAxis));
+			}
+		}
+
+		m_Orientation = glm::normalize(m_Orientation);
 
 		updateVectors();
 		updateProjectionMatrix();
 	}
 
 	void Camera::updateVectors() {
-		// Use stabilized quaternion to update vectors
-		m_Forward = glm::normalize(m_Orientation * glm::vec3(0.0f, 0.0f, -1.0f));
-		m_Right = glm::normalize(glm::cross(m_Forward, glm::vec3(0.0f, 1.0f, 0.0f)));
-		m_Up = glm::normalize(glm::cross(m_Right, m_Forward));
+		// Extract basis vectors directly from quaternion
+		m_Forward = glm::normalize(m_Orientation * glm::vec3(0.0f, 0.0f, -1.0f));  // Forward is -Z in view space
+		m_Right = glm::normalize(m_Orientation * glm::vec3(1.0f, 0.0f, 0.0f));     // Right is +X in view space
+		m_Up = glm::normalize(m_Orientation * glm::vec3(0.0f, 1.0f, 0.0f));        // Up is +Y in view space
 
 		updateViewMatrix();
 	}
@@ -178,44 +180,35 @@ namespace SE {
 	}
 
 	void Camera::applyRotation(float deltaYaw, float deltaPitch) {
-		// Apply rotations
-		const float maxRotationSpeed = glm::radians(45.0f); // Max 45 degrees per frame
+		constexpr float maxRotationSpeed = glm::radians(45.0f);
 		deltaYaw = glm::clamp(deltaYaw, -maxRotationSpeed, maxRotationSpeed);
 		deltaPitch = glm::clamp(deltaPitch, -maxRotationSpeed, maxRotationSpeed);
 
-		// Apply rotations
-		glm::quat pitchQuat = glm::angleAxis(deltaPitch, m_Right);
 		glm::quat yawQuat = glm::angleAxis(deltaYaw, glm::vec3(0.0f, 1.0f, 0.0f));
+		glm::quat pitchQuat = glm::angleAxis(deltaPitch, m_Right);
 
 		glm::quat newOrientation = yawQuat * pitchQuat * m_Orientation;
 
-		// Stabilize quaternion
-		newOrientation = stabilizeQuaternion(newOrientation);
+		glm::vec3 newUp = glm::normalize(newOrientation * glm::vec3(0.0f, 1.0f, 0.0f));
+		float upDot = glm::dot(newUp, glm::vec3(0.0f, 1.0f, 0.0f));
 
-		// Update forward vector to calculate pitch angle
-		glm::vec3 newForward = glm::normalize(newOrientation * glm::vec3(0.0f, 0.0f, -1.0f));
-		float newPitch = glm::degrees(glm::asin(glm::clamp(newForward.y, -1.0f, 1.0f)));
-
-		// Clamp pitch angle
-		if (newPitch > PITCH_LIMIT) {
-			deltaPitch = glm::radians(PITCH_LIMIT - m_Pitch);
-			pitchQuat = glm::angleAxis(deltaPitch, m_Right);
-			newOrientation = yawQuat * pitchQuat * m_Orientation;
+		if (upDot < 0.0f) {
+			m_Orientation = glm::normalize(yawQuat * m_Orientation);
 		}
-		else if (newPitch < -PITCH_LIMIT) {
-			deltaPitch = glm::radians(-PITCH_LIMIT - m_Pitch);
-			pitchQuat = glm::angleAxis(deltaPitch, m_Right);
-			newOrientation = yawQuat * pitchQuat * m_Orientation;
+		else {
+			glm::vec3 newForward = glm::normalize(newOrientation * glm::vec3(0.0f, 0.0f, -1.0f));
+			float pitch = glm::degrees(glm::asin(glm::clamp(newForward.y, -1.0f, 1.0f)));
+
+			// Apply rotation based on pitch limits
+			if (std::abs(pitch) <= PITCH_LIMIT) {
+				m_Orientation = glm::normalize(newOrientation);
+			}
+			else {
+				// Only apply yaw if we would exceed pitch limits
+				m_Orientation = glm::normalize(yawQuat * m_Orientation);
+			}
 		}
 
-		// Stabilize quaternion
-		m_Orientation = stabilizeQuaternion(newOrientation);
-
-		// Update pitch and yaw
-		m_Pitch += glm::degrees(deltaPitch);
-		m_Yaw += glm::degrees(deltaYaw);
-
-		// Update camera vectors
 		updateVectors();
 	}
 
@@ -239,14 +232,15 @@ namespace SE {
 	void Camera::setTarget(const glm::vec3& target) {
 		glm::vec3 direction = glm::normalize(target - m_Position);
 
-		// Calculate pitch and yaw from direction, with proper clamping
-		m_Pitch = glm::degrees(std::asin(glm::clamp(direction.y, -1.0f, 1.0f)));
-		m_Yaw = glm::degrees(std::atan2(direction.z, direction.x));
-
-		// Create and stabilize the orientation quaternion
-		m_Orientation = stabilizeQuaternion(
-			glm::quat(glm::vec3(glm::radians(-m_Pitch), glm::radians(-m_Yaw), 0.0f))
+		// Create rotation matrix that aligns camera with target
+		glm::mat4 rotationMatrix = glm::lookAt(
+			glm::vec3(0.0f),  // From origin
+			direction,        // To direction
+			glm::vec3(0.0f, 1.0f, 0.0f)  // Up vector
 		);
+
+		// Convert rotation matrix to quaternion
+		m_Orientation = glm::normalize(glm::quat_cast(rotationMatrix));
 
 		updateVectors();
 	}

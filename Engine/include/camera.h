@@ -30,8 +30,8 @@ namespace SE {
 
 		// Getters
 		[[nodiscard]] const glm::vec3& getPosition() const { return m_Position; }
-		[[nodiscard]] float getYaw() const { return m_Yaw; }
-		[[nodiscard]] float getPitch() const { return m_Pitch; }
+		//[[nodiscard]] float getYaw() const { return m_Yaw; }
+		//[[nodiscard]] float getPitch() const { return m_Pitch; }
 		[[nodiscard]] float getFov() const { return m_Fov; }
 		[[nodiscard]] float getAspectRatio() const { return m_AspectRatio; }
 
@@ -53,8 +53,8 @@ namespace SE {
 		glm::quat m_Orientation;
 		// Core state
 		glm::vec3 m_Position;
-		float m_Yaw{ -90.0f };    // Rotation around Y-axis in degrees
-		float m_Pitch{ 0.0f };    // Rotation around X-axis in degrees
+		//float m_Yaw{ -90.0f };    // Rotation around Y-axis in degrees
+		//float m_Pitch{ 0.0f };    // Rotation around X-axis in degrees
 
 		// Camera basis vectors - cached after rotation updates
 		glm::vec3 m_Forward{ 0.0f, 0.0f, -1.0f };

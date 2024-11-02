@@ -294,8 +294,6 @@ namespace SE
 
 		VkSubmitInfo2 submit = vkInit::submitInfo(&cmdInfo, &signalInfo, &waitInfo);
 
-		// Submit command buffer to the queue and execute it.
-		// renderFence will now block until the graphic commands finish execution
 		VK_CHECK(vkQueueSubmit2(m_GraphicsQueue, 1, &submit, getCurrentFrame().renderFence));
 
 		VkPresentInfoKHR presentInfo = {};
@@ -454,23 +452,23 @@ namespace SE
 		int width, height;
 		SDL_GetWindowSize(m_Window, &width, &height);
 
-		//if (m_WindowExtent.width != width || m_WindowExtent.height != height)
-		//{
-		vkDeviceWaitIdle(m_Device);
-
-		m_WindowExtent.width = static_cast<uint32_t>(width);
-		m_WindowExtent.height = static_cast<uint32_t>(height);
-		m_SwapchainExtent = m_WindowExtent;
-		destroySwapchain();
-
-		createSwapchain(m_SwapchainExtent.width, m_SwapchainExtent.height);
-		//}
-
 		glm::vec2 viewportSize = m_Editor->getViewportSize();
 
 		resizeDrawImage(viewportSize);
 		m_Camera->updateAspectRatio(viewportSize);
 		m_ResizeRequested = false;
+
+		if (m_WindowExtent.width != width || m_WindowExtent.height != height)
+		{
+			vkDeviceWaitIdle(m_Device);
+
+			m_WindowExtent.width = static_cast<uint32_t>(width);
+			m_WindowExtent.height = static_cast<uint32_t>(height);
+			m_SwapchainExtent = m_WindowExtent;
+			destroySwapchain();
+
+			createSwapchain(m_SwapchainExtent.width, m_SwapchainExtent.height);
+		}
 	}
 
 	void Engine::resizeDrawImage(glm::vec2 viewportSize) {
