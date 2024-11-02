@@ -2,7 +2,9 @@ add_library(SingularityEngine SHARED)
 
 # Source files
 file(GLOB_RECURSE ENGINE_SOURCES "src/*.cpp" "src/*.c")
-file(GLOB_RECURSE ENGINE_HEADERS "include/*.h" "include/*.hpp")
+file(GLOB_RECURSE ENGINE_HEADERS "include/*.h" "include/*.hpp" "src/*.hpp")
+
+
 file(GLOB_RECURSE INTERNAL_HEADERS "src/internal/*.h" "src/internal/*.hpp")
 
 # Remove PCH from sources
@@ -21,7 +23,6 @@ target_sources(SingularityEngine
 target_include_directories(SingularityEngine
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/internal
         ${CMAKE_CURRENT_SOURCE_DIR}/src
 )

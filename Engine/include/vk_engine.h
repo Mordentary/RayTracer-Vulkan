@@ -22,6 +22,7 @@
 #include <glm/gtx/euler_angles.hpp>
 #include <glm\gtx\norm.hpp>
 #include <filesystem>
+#include <renderer\backend\Vulkan\vulkan_backend.hpp>
 
 namespace SE
 {
@@ -49,7 +50,6 @@ namespace SE
 		}
 	};
 
-	// Minimal resources for a mesh draw command
 	struct DrawCommand {
 		DrawCommand(
 			uint32_t inIndexCount,
@@ -198,7 +198,6 @@ namespace SE
 				});
 		}
 	};
-
 	class MaterialSystem {
 	public:
 		void initialize(Engine* engine);
@@ -424,6 +423,8 @@ namespace SE
 
 		std::unordered_map<std::string, Shared<LoadedGLTF>> m_LoadedNodes;
 
+		std::unique_ptr<VulkanBackend> m_VulkanBackend;
+
 		Shared<Camera> m_Camera;
 		Scoped<Editor> m_Editor;
 
@@ -438,7 +439,7 @@ namespace SE
 		void resizeDrawImage(glm::vec2 viewportSize);
 
 		void initDefaultData();
-		void initVulkan();
+		//void initVulkan();
 		void initSwapchain();
 		void initCommandBuffers();
 		void initDescriptors();
