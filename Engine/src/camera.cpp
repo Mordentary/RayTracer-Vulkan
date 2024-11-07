@@ -93,26 +93,21 @@ namespace SE {
 		m_ViewProjection = m_Projection * m_View;
 	}
 
-	void Camera::processKeyboard(const Uint8* state, float deltaTime) {
+	void Camera::processKeyboard(const Uint8* state) {
 		if (!state) return;
 
-		glm::vec3 movement(0.0f);
-		float velocity = m_MovementSpeed * deltaTime;
-
+		glm::vec3 velocity(0.0f);
+		float velocityMul = m_MovementSpeed;
 		// Accumulate movement in camera space
-		if (state[SDL_SCANCODE_W]) movement += m_Forward;
-		if (state[SDL_SCANCODE_S]) movement -= m_Forward;
-		if (state[SDL_SCANCODE_A]) movement -= m_Right;
-		if (state[SDL_SCANCODE_D]) movement += m_Right;
-		if (state[SDL_SCANCODE_SPACE]) movement += glm::vec3(0.0f, 1.0f, 0.0f);
-		if (state[SDL_SCANCODE_LCTRL]) movement -= glm::vec3(0.0f, 1.0f, 0.0f);
+		if (state[SDL_SCANCODE_W]) velocity += m_Forward;
+		if (state[SDL_SCANCODE_S]) velocity -= m_Forward;
+		if (state[SDL_SCANCODE_A]) velocity -= m_Right;
+		if (state[SDL_SCANCODE_D]) velocity += m_Right;
+		if (state[SDL_SCANCODE_SPACE]) velocity += glm::vec3(0.0f, 1.0f, 0.0f);
+		if (state[SDL_SCANCODE_LCTRL]) velocity -= glm::vec3(0.0f, 1.0f, 0.0f);
+		if (state[SDL_SCANCODE_LSHIFT]) velocityMul *= 2.0f; // Sprint multiplier
 
-		if (glm::length2(movement) > 0.0f) {
-			if (state[SDL_SCANCODE_LSHIFT]) velocity *= 2.0f; // Sprint multiplier
-			movement = glm::normalize(movement) * velocity;
-			m_Position += movement;
-			updateViewMatrix();
-		}
+		m_CurrentVelocity = glm::normalize(velocity) * velocityMul;
 	}
 
 	bool Camera::isMouseInViewport(int mouseX, int mouseY) {
@@ -127,14 +122,12 @@ namespace SE {
 			mouseY >= viewportY && mouseY <= viewportY + viewportHeight);
 	}
 
-	void Camera::handleEvent(const SDL_Event& event, float deltaTime) {
+	void Camera::handleEvent(const SDL_Event& event) {
 		switch (event.type) {
 		case SDL_MOUSEBUTTONDOWN:
 			if (event.button.button == SDL_BUTTON_RIGHT &&
 				(!m_ViewportState || m_ViewportState->isHovered)) {
 				m_IsRotating = true;
-				m_LastMouseX = event.button.x;
-				m_LastMouseY = event.button.y;
 				SDL_SetRelativeMouseMode(SDL_TRUE);
 			}
 			break;
@@ -165,20 +158,26 @@ namespace SE {
 					return;
 				}
 
-				float deltaYaw = -event.motion.xrel * m_MouseSensitivity * deltaTime;
-				float deltaPitch = -event.motion.yrel * m_MouseSensitivity * deltaTime;
-				deltaYaw = glm::radians(deltaYaw);
-				deltaPitch = glm::radians(deltaPitch);
-
-				sanitizeRotationDelta(deltaYaw, deltaPitch);
-
-				// Apply rotation with smoothing
-				applyRotation(deltaYaw, deltaPitch);
+				m_DeltaYaw = -event.motion.xrel * m_MouseSensitivity;
+				m_DeltaPitch = -event.motion.yrel * m_MouseSensitivity;
 			}
 			break;
 		}
 	}
 
+	void Camera::update(float deltaTime)
+	{
+		float deltaYaw = glm::radians(m_DeltaYaw * deltaTime);
+		float deltaPitch = glm::radians(m_DeltaPitch * deltaTime);
+		sanitizeRotationDelta(deltaYaw, deltaPitch);
+		// Apply rotation with smoothing
+		applyRotation(deltaYaw, deltaPitch);
+
+		if (glm::length2(m_CurrentVelocity) > 0.0f) {
+			m_Position += m_CurrentVelocity * deltaTime;
+		}
+		updateViewMatrix();
+	}
 	void Camera::applyRotation(float deltaYaw, float deltaPitch) {
 		constexpr float maxRotationSpeed = glm::radians(45.0f);
 		deltaYaw = glm::clamp(deltaYaw, -maxRotationSpeed, maxRotationSpeed);

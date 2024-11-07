@@ -1,5 +1,7 @@
 #pragma once
 
+#include <core\logger.hpp>
+#include <performance_timer.hpp>
 #include<memory>
 namespace SE {
 	//Error checking

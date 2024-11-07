@@ -17,21 +17,21 @@ namespace SE {
 		);
 
 		// Core functionality
+
+		void update(float deltaTime);
 		[[nodiscard]] const glm::mat4& getViewMatrix() const { return m_View; }
 		[[nodiscard]] const glm::mat4& getProjectionMatrix() const { return m_Projection; }
 		[[nodiscard]] const glm::mat4& getViewProjectionMatrix() const { return m_ViewProjection; }
 
 		// Input handling
-		void processKeyboard(const Uint8* state, float deltaTime);
-		void handleEvent(const SDL_Event& event, float deltaTime);
+		void processKeyboard(const Uint8* state);
+		void handleEvent(const SDL_Event& event);
 
 		// Window management
 		void updateAspectRatio(glm::vec2 viewportSize);
 
 		// Getters
 		[[nodiscard]] const glm::vec3& getPosition() const { return m_Position; }
-		//[[nodiscard]] float getYaw() const { return m_Yaw; }
-		//[[nodiscard]] float getPitch() const { return m_Pitch; }
 		[[nodiscard]] float getFov() const { return m_Fov; }
 		[[nodiscard]] float getAspectRatio() const { return m_AspectRatio; }
 
@@ -53,8 +53,11 @@ namespace SE {
 		glm::quat m_Orientation;
 		// Core state
 		glm::vec3 m_Position;
-		//float m_Yaw{ -90.0f };    // Rotation around Y-axis in degrees
-		//float m_Pitch{ 0.0f };    // Rotation around X-axis in degrees
+		glm::vec3 m_CurrentVelocity;
+
+		//In degree
+		float m_DeltaYaw{ -90.0f };
+		float m_DeltaPitch{ 0.0f };
 
 		// Camera basis vectors - cached after rotation updates
 		glm::vec3 m_Forward{ 0.0f, 0.0f, -1.0f };
@@ -68,10 +71,6 @@ namespace SE {
 		float m_FarPlane{ 0.1f };
 		float m_MovementSpeed{ 5.0f };
 		float m_MouseSensitivity{ 10.0f };
-
-		int m_LastMouseX, m_LastMouseY;
-
-		glm::vec2 m_LastMousePos;
 
 		SDL_Window* m_Window;
 		const Editor::ViewportState* m_ViewportState;
