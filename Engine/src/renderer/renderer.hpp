@@ -1,7 +1,7 @@
 #pragma once
 #include "../RHI/rhi.hpp"
 #include "engine_core.h"
-
+#include <sigslot\signal.hpp>
 namespace SE
 {
 	class Renderer
@@ -20,5 +20,7 @@ namespace SE
 		const static int MAX_INFLIGHT_FRAMES = 3;
 		uint64_t m_FrameFenceStates[MAX_INFLIGHT_FRAMES] = {};
 		std::unique_ptr<rhi::CommandList> m_pCommandLists[MAX_INFLIGHT_FRAMES];
+
+	private:
 	};
 }

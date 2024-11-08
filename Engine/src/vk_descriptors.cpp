@@ -1,7 +1,6 @@
 ﻿#include "vk_descriptors.h"
 #include "vk_initializers.h"
 
-
 namespace SE
 {
 	void DescriptorLayoutBuilder::addBinding(uint32_t binding, VkDescriptorType type)
@@ -37,7 +36,6 @@ namespace SE
 
 		return set;
 	}
-
 
 	void DescriptorWriter::writeImage(int binding, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type)
 	{

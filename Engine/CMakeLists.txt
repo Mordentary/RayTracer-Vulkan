@@ -39,6 +39,7 @@ target_link_libraries(SingularityEngine
         stb_image
         glm
         vma
+        Pal::Sigslot
         fastgltf
         fmt::fmt
         SDL2

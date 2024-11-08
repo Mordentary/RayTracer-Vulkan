@@ -210,7 +210,7 @@ namespace SE
 
 	protected:
 
-		void setParent(const std::shared_ptr<SceneNode>& parent) { m_Parent = parent; }
+		void setParent(const Shared<SceneNode>& parent) { m_Parent = parent; }
 
 		Weak<SceneNode> m_Parent;
 		std::vector<Shared<SceneNode>> m_Children;

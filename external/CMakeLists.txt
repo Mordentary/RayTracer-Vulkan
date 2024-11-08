@@ -24,6 +24,10 @@ set_property(TARGET vkbootstrap PROPERTY CXX_STANDARD 20)
 add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE glm)
 
+# SIG
+set(SIGSLOT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SIGSLOT_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+add_subdirectory(sigslot EXCLUDE_FROM_ALL)
 # VMA
 add_library(vma STATIC vma/vk_mem_alloc.cpp)
 target_include_directories(vma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vma)
@@ -52,4 +56,9 @@ target_link_libraries(imgui PUBLIC Vulkan::Vulkan SDL2::SDL2)
 
 # Additional libraries
 add_subdirectory(fastgltf)
+
+set(FMT_TEST OFF CACHE BOOL "" FORCE)
+set(FMT_DOC OFF CACHE BOOL "" FORCE)
+set(FMT_INSTALL OFF CACHE BOOL "" FORCE)
+
 add_subdirectory(fmt EXCLUDE_FROM_ALL)

@@ -1,15 +1,14 @@
-#include "Logger.hpp"
+#include "logger.hpp"
+#include <ctime>     // For std::time
+#include <iostream>  // For std::cerr
 
 namespace SE {
-
-	void Logger::init(const std::filesystem::path& logFile) {
-		if (!logFile.empty()) {
-			m_FileStream.open(logFile, std::ios::out | std::ios::app);
-			if (!m_FileStream.is_open()) {
-				fmt::print(stderr, "Failed to open log file: {}\n", logFile.string());
-			}
-		}
+	Logger& Logger::getInstance() {
+		static Logger instance;
+		return instance;
 	}
+
+	Logger::Logger() = default;
 
 	Logger::~Logger() {
 		if (m_FileStream.is_open()) {
@@ -17,97 +16,80 @@ namespace SE {
 		}
 	}
 
-	void Logger::logAssert(const char* expr, const std::string& msg,
-		const std::source_location& location) {
-		const auto assertStyle = fg(fmt::color::red) | bg(fmt::color::black) | fmt::emphasis::bold;
-
-		std::string assertMsg = fmt::format(
-			"\nAssertion failed!\n"
-			"Expression: {}\n"
-			"Message: {}\n"
-			"File: {}\n"
-			"Line: {}\n"
-			"Function: {}\n",
-			expr, msg,
-			std::filesystem::path(location.file_name()).string(),
-			location.line(),
-			location.function_name()
-		);
-
-		// Log to console with styling
-		fmt::print("{}", fmt::styled(assertMsg, assertStyle));
-
-		// Log to file if enabled
-		if (m_FileStream.is_open()) {
-			m_FileStream << assertMsg << std::endl;
+	void Logger::init(const std::filesystem::path& logFile) {
+		if (!logFile.empty()) {
+			m_FileStream.open(logFile, std::ios::out | std::ios::app);
 		}
 	}
 
-	fmt::text_style Logger::getLevelStyle(LogLevel level) const {
-		switch (level) {
-		case LogLevel::Trace:
-			return fg(fmt::color::gray);
-		case LogLevel::Debug:
-			return fg(fmt::color::light_blue);
-		case LogLevel::Info:
-			return fg(fmt::color::white);
-		case LogLevel::Warn:
-			return fg(fmt::color::yellow) | fmt::emphasis::bold;
-		case LogLevel::Error:
-			return fg(fmt::color::red) | fmt::emphasis::bold;
-		case LogLevel::Critical:
-			return fg(fmt::color::red) | bg(fmt::color::black) | fmt::emphasis::bold;
-		default:
-			return {};
-		}
+	void Logger::setLogLevel(LogLevel level) {
+		m_MinLevel = level;
 	}
 
-	const char* Logger::getLevelString(LogLevel level) const {
-		switch (level) {
-		case LogLevel::Trace:    return "TRACE";
-		case LogLevel::Debug:    return "DEBUG";
-		case LogLevel::Info:     return "INFO";
-		case LogLevel::Warn:     return "WARN";
-		case LogLevel::Error:    return "ERROR";
-		case LogLevel::Critical: return "CRITICAL";
-		default:                 return "UNKNOWN";
-		}
+	void Logger::setShowTimestamps(bool show) {
+		m_ShowTimestamps = show;
 	}
 
-	void Logger::logVulkanError(VkResult result, const std::string& msg,
-		const std::source_location& loc) {
-		const auto vulkanErrorStyle = fg(fmt::color::red) | fmt::emphasis::bold;
+	void Logger::setShowSourceLocation(bool show) {
+		m_ShowSourceLocation = show;
+	}
 
-		std::string errorMsg = fmt::format(
-			"\nVulkan Error!\n"
-			"Result: {} ({})\n"
-			"Message: {}\n"
-			"File: {}\n"
-			"Line: {}\n"
-			"Function: {}\n",
-			vkResultToString(result),
-			static_cast<int>(result),
-			msg,
-			std::filesystem::path(loc.file_name()).string(),
-			loc.line(),
-			loc.function_name()
-		);
-
-		// Log to console with styling
-		fmt::print("{}", fmt::styled(errorMsg, vulkanErrorStyle));
-
-		// Log to file if enabled
-		if (m_FileStream.is_open()) {
-			m_FileStream << errorMsg << std::endl;
-		}
-
-		// Print stack trace in debug builds
-#if defined(_DEBUG) || !defined(NDEBUG)
-		if (auto st = std::stacktrace::current(); st.size() > 0) {
-			m_FileStream << "\nStack trace:\n" << st << std::endl;
-			fmt::print("\nStack trace:\n{}\n", st);
-		}
+	void Logger::assertFailed(const char* expr, const std::source_location& loc, const std::string& msg) {
+		logAssert(expr, msg, loc);
+#ifdef _MSC_VER
+		__debugbreak();
+#else
+		std::abort();
 #endif
+	}
+
+	void Logger::logAssert(const char* expr, const std::string& msg, const std::source_location& location) {
+		std::string formattedMsg = formatLogMessage(
+			LogLevel::Critical, location, fmt::format("Assertion failed: {}. Message: {}", expr, msg));
+
+		// Output to console with color
+		fmt::print("{}\n", fmt::styled(formattedMsg, getLevelStyle(LogLevel::Critical)));
+
+		// Output to file if enabled
+		if (m_FileStream.is_open()) {
+			m_FileStream << formattedMsg << std::endl;
+		}
+	}
+
+	bool Logger::vkCheck(VkResult result, const std::source_location& loc, const std::string& msg) {
+		if (result != VK_SUCCESS) {
+			logVulkanError(result, msg, loc);
+			return false;
+		}
+		return true;
+	}
+
+	void Logger::logVulkanError(VkResult result, const std::string& msg, const std::source_location& loc) {
+		std::string errorMsg = fmt::format("Vulkan error {}: {}", vkResultToString(result), msg);
+		log(LogLevel::Error, loc, "{}", errorMsg);
+	}
+
+	std::string Logger::formatLogMessage(LogLevel level, const std::source_location& location, const std::string& message) {
+		std::string result;
+
+		// Add timestamp if enabled
+		if (m_ShowTimestamps) {
+			auto time = std::time(nullptr);
+			result += fmt::format("[{:%Y-%m-%d %H:%M:%S}] ", *std::localtime(&time));
+		}
+
+		// Add log level
+		result += fmt::format("[{}] ", getLevelString(level));
+
+		// Add source location if enabled
+		if (m_ShowSourceLocation) {
+			result += fmt::format("[{}:{}] ",
+				std::filesystem::path(location.file_name()).filename().string(),
+				location.line());
+		}
+
+		result += message;
+		return result;
 	}
 
 	const char* Logger::vkResultToString(VkResult result) const {
@@ -144,5 +126,27 @@ namespace SE {
 		}
 	}
 
+	fmt::text_style Logger::getLevelStyle(LogLevel level) const {
+		switch (level) {
+		case LogLevel::Trace: return fmt::fg(fmt::color::light_gray);
+		case LogLevel::Debug: return fmt::fg(fmt::color::white);
+		case LogLevel::Info: return fmt::fg(fmt::color::green);
+		case LogLevel::Warn: return fmt::fg(fmt::color::yellow);
+		case LogLevel::Error: return fmt::fg(fmt::color::red);
+		case LogLevel::Critical: return fmt::fg(fmt::color::red) | fmt::emphasis::bold;
+		default: return fmt::text_style();
+		}
+	}
 
-} 
+	const char* Logger::getLevelString(LogLevel level) const {
+		switch (level) {
+		case LogLevel::Trace: return "Trace";
+		case LogLevel::Debug: return "Debug";
+		case LogLevel::Info: return "Info";
+		case LogLevel::Warn: return "Warn";
+		case LogLevel::Error: return "Error";
+		case LogLevel::Critical: return "Critical";
+		default: return "Unknown";
+		}
+	}
+}  // namespace SE

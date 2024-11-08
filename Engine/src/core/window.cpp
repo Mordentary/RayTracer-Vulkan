@@ -1,5 +1,4 @@
 #include "window.hpp"
-#include "window.hpp"
 
 namespace windows
 {
@@ -19,8 +18,8 @@ namespace SE {
 
 	void Window::init(const std::string& title, uint32_t width, uint32_t height) {
 		windows::SetProcessDPIAware();
-
-		SE_ASSERT((SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS) < 0));
+		int err = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
+		SE_ASSERT_MSG((err == 0), "SDL INIT FAILED");
 
 		SDL_WindowFlags windowFlags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE |
 			SDL_WINDOW_ALLOW_HIGHDPI);
@@ -33,7 +32,7 @@ namespace SE {
 			height,
 			windowFlags);
 
-		SE_ASSERT(m_Window);
+		SE_ASSERT(m_Window, "Window is null!");
 	}
 
 	void Window::shutdown() {
@@ -54,7 +53,7 @@ namespace SE {
 					m_Width = event.window.data1;
 					m_Height = event.window.data2;
 					// Emit window resize signal
-					WindowResizeSignal.emit(m_Width, m_Height);
+					WindowResizeSignal(m_Width, m_Height);
 					break;
 
 				case SDL_WINDOWEVENT_MINIMIZED:

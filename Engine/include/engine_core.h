@@ -4,16 +4,6 @@
 #include <performance_timer.hpp>
 #include<memory>
 namespace SE {
-	//Error checking
-#define VK_CHECK(x)                                                     \
-    do {                                                                \
-        VkResult err = x;                                               \
-        if (err) {                                                      \
-             fmt::print("Detected Vulkan error: {}", string_VkResult(err)); \
-            abort();                                                    \
-        }                                                               \
-    } while (0)
-
 	template <typename T>
 	using Shared = std::shared_ptr<T>;
 	template<typename T, typename ... Args>

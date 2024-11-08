@@ -5,6 +5,7 @@
 #include <vector>
 #include <deque>
 #include <stack>
+#include <numeric>
 #include <imgui.h>
 
 namespace SE {

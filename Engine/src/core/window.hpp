@@ -4,8 +4,7 @@
 #include <functional>
 #include <vector>
 #include <string>
-#include"utils\signal.hpp"
-
+#include <sigslot\signal.hpp>
 namespace SE {
 	class Window {
 	public:
@@ -23,7 +22,7 @@ namespace SE {
 		bool isMinimized() const { return m_Minimized; }
 		bool isRunning() const { return m_Running; }
 		void close() { m_Running = false; }
-		Signal<uint32_t, uint32_t> WindowResizeSignal;
+		sigslot::signal<uint32_t, uint32_t> WindowResizeSignal;
 
 	private:
 		void init(const std::string& title, uint32_t width, uint32_t height);
