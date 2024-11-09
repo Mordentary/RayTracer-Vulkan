@@ -20,6 +20,17 @@ target_link_libraries(vkbootstrap PUBLIC
 )
 set_property(TARGET vkbootstrap PROPERTY CXX_STANDARD 20)
 
+#Volk
+set(VOLK_SOURCE_DIR volk)
+add_library(volk STATIC 
+    ${VOLK_SOURCE_DIR}/volk.c
+    ${VOLK_SOURCE_DIR}/volk.h
+)
+target_include_directories(volk 
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}  # Or wherever your volk directory is
+)
+target_link_libraries(volk PUBLIC Vulkan::Vulkan)
+
 # GLM
 add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE glm)

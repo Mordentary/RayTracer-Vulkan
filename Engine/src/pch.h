@@ -30,8 +30,8 @@
 #include <glm/gtx/transform.hpp>
 
 // Vulkan Headers
-#include <vulkan/vulkan.h>
-#include <vulkan/vk_enum_string_helper.h>
+
+#include"volk\volk.h"
 #include <vk_initializers.h>
 #include <vk_images.h>
 #include <engine_core.h>

@@ -40,6 +40,7 @@ target_link_libraries(SingularityEngine
         glm
         vma
         Pal::Sigslot
+        volk
         fastgltf
         fmt::fmt
         SDL2

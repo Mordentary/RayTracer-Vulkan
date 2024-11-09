@@ -26,7 +26,7 @@ namespace SE
 		SINGULARITY_API void run();
 		SINGULARITY_API void shutdown();
 
-		const Window& getWindow() const { return *m_Window; }
+		Window& getWindow() const { return *m_Window; }
 	private:
 		Engine() = default;
 		~Engine() = default;

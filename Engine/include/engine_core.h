@@ -4,6 +4,8 @@
 #include <performance_timer.hpp>
 #include<memory>
 namespace SE {
+#define VK_CHECK(expr) (void)expr
+
 	template <typename T>
 	using Shared = std::shared_ptr<T>;
 	template<typename T, typename ... Args>

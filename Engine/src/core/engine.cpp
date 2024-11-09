@@ -28,7 +28,7 @@ namespace SE
 			handleEvent(event);
 			});
 
-		m_Renderer = Scoped<Renderer>();
+		m_Renderer = CreateScoped<Renderer>();
 		m_Renderer->createDevice(rhi::RenderBackend::Vulkan, m_Window->getNativeWindow(), widthWin, heightWin);
 
 		//World

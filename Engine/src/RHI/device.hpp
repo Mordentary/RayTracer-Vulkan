@@ -36,7 +36,7 @@ namespace rhi {
 		// Frame management
 		virtual void beginFrame() = 0;
 		virtual void endFrame() = 0;
-		virtual uint32_t getCurrentFrameIndex() const = 0;
+		virtual uint32_t getFrameID() const = 0;
 		virtual uint32_t getFramesInFlight() const = 0;
 
 		// Synchronization
@@ -75,12 +75,5 @@ namespace rhi {
 		// Copy operations
 		virtual void copyBuffer(Buffer* dst, uint64_t dstOffset, Buffer* src, uint64_t srcOffset, uint64_t size) = 0;
 		virtual void copyTexture(Texture* dst, Texture* src) = 0;
-	};
-
-	class Fence : public Resource {
-	public:
-		virtual void wait() = 0;
-		virtual void reset() = 0;
-		virtual bool isSignaled() = 0;
 	};
 } // namespace rhi

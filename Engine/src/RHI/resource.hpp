@@ -9,11 +9,10 @@ namespace rhi {
 		virtual ~Resource() = default;
 		virtual void* getHandle() const = 0;
 
-		const std::string& getDebugName() const { return m_debugName; }
-		void setDebugName(const std::string& name) { m_debugName = name; }
+		const std::string& getDebugName() const { return m_DebugName; }
 
 	protected:
-		Device* m_device = nullptr;
-		std::string m_debugName;
+		Device* m_pDevice = nullptr;
+		std::string m_DebugName;
 	};
 } // namespace rhi

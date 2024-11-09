@@ -1,5 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.16)
-project("SingularityEngine" LANGUAGES CXX)
+project("SingularityEngine" LANGUAGES C CXX)
 
 # Global settings
 set(CMAKE_VERBOSE_MAKEFILE ON)
