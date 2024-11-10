@@ -6,14 +6,15 @@ namespace rhi::vulkan {
 
 	class VulkanBuffer final : public Buffer {
 	public:
-		VulkanBuffer(VulkanDevice* device, const BufferDescription& desc, const void* initialData = nullptr);
+		VulkanBuffer(VulkanDevice* device, const BufferDescription& desc, const std::string& name);
 		~VulkanBuffer();
 
+		bool create();
 		// Buffer interface
 		void* map() override;
 		void unmap() override;
-		const BufferDescription& getDesc() const override { return m_Desc; }
 		uint64_t getGpuAddress() const override;
+		void* getCpuAddress() override;
 		bool isMapped() const override { return m_Mapped; }
 
 		// Resource interface
@@ -24,12 +25,6 @@ namespace rhi::vulkan {
 		VmaAllocation getAllocation() const { return m_Allocation; }
 
 	private:
-		bool init(const void* initialData);
-		void cleanup();
-
-		VulkanDevice* m_VulkanDevice;
-		BufferDescription m_Desc;
-
 		VkBuffer m_Buffer = VK_NULL_HANDLE;
 		VmaAllocation m_Allocation = VK_NULL_HANDLE;
 		void* m_MappedData = nullptr;

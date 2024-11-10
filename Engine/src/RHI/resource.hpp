@@ -12,7 +12,7 @@ namespace rhi {
 		const std::string& getDebugName() const { return m_DebugName; }
 
 	protected:
-		Device* m_pDevice = nullptr;
+		Device* m_Device = nullptr;
 		std::string m_DebugName;
 	};
 } // namespace rhi

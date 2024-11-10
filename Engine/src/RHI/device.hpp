@@ -20,38 +20,21 @@ namespace rhi {
 		virtual ~Device() = default;
 
 		virtual void* getHandle() const = 0;
-		// Core resource creation
-		virtual Buffer* createBuffer(const BufferDescription& desc, const void* initialData = nullptr) = 0;
-		virtual Texture* createTexture(const TextureDescription& desc, const void* initialData = nullptr) = 0;
-		virtual Swapchain* createSwapchain(const SwapchainDescription& desc) = 0;
-		//virtual DescriptorPool* createDescriptorPool(const DescriptorPoolDesc& desc) = 0;
-		//virtual DescriptorSetLayout* createDescriptorSetLayout(const DescriptorSetLayoutDesc& desc) = 0;
-		//virtual DescriptorSet* allocateDescriptorSet(DescriptorPool* pool, DescriptorSetLayout* layout) = 0;
-		//virtual void updateDescriptorSet(DescriptorSet* set, const DescriptorSetUpdate& update) = 0;
-
-		// Command management
-		virtual CommandList* createCommandList(CommandType type) = 0;
-		virtual void submit(CommandList* cmdList, Fence* fence = nullptr) = 0;
-
-		// Frame management
 		virtual void beginFrame() = 0;
 		virtual void endFrame() = 0;
 		virtual uint32_t getFrameID() const = 0;
-		virtual uint32_t getFramesInFlight() const = 0;
 
-		// Synchronization
-		virtual Fence* createFence(bool signaled = false) = 0;
-		virtual void waitForFence(Fence* fence) = 0;
-		virtual void resetFence(Fence* fence) = 0;
-		virtual void waitIdle() = 0;
+		// Core resource creation
+		virtual CommandList* createCommandList(CommandType queue_type, const std::string& name) = 0;
+		virtual Swapchain* createSwapchain(const SwapchainDescription& desc, const std::string& name) = 0;
+		virtual Fence* createFence(const std::string& name) = 0;
+		virtual Buffer* createBuffer(const BufferDescription& desc, const std::string& name) = 0;
+		virtual Texture* createTexture(const TextureDescription& desc, const std::string& name) = 0;
+		//virtual Shader* CreateShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name) = 0;
 
-		// Resource cleanup
-		virtual void destroyResource(Resource* resource) = 0;
-
-		virtual void setDebugName(Resource* resource, const char* name) = 0;
 	protected:
-		DeviceDescription m_Desc;
-		uint64_t m_FrameCount = 0;
+		DeviceDescription m_Description;
+		uint64_t m_FrameID = 0;
 	};
 
 	class CommandList : public Resource {

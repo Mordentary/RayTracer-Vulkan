@@ -4,55 +4,40 @@
 #include <cassert>
 
 namespace rhi::vulkan {
-	VulkanBuffer::VulkanBuffer(VulkanDevice* device, const BufferDescription& desc, const void* initialData)
-		: m_VulkanDevice(device)
-		, m_Desc(desc) {
-		init(initialData);
+
+	VulkanBuffer::VulkanBuffer(VulkanDevice* device, const BufferDescription& desc, const std::string& name)
+	{
+		m_Device = device;
+		m_Description = desc;
+		m_DebugName = name;
 	}
 
-	VulkanBuffer::~VulkanBuffer() {
-		cleanup();
+	VulkanBuffer::~VulkanBuffer()
+	{
+		((VulkanDevice*)m_Device)->enqueueDeletion(m_Buffer);
+		((VulkanDevice*)m_Device)->enqueueDeletion(m_Allocation);
 	}
 
-	bool VulkanBuffer::init(const void* initialData) {
+	bool VulkanBuffer::create() {
 		VkBufferCreateInfo bufferInfo = {};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		bufferInfo.size = m_Desc.size;
-		bufferInfo.usage = translateBufferUsage(m_Desc.usage);
+		bufferInfo.size = m_Description.size;
+		bufferInfo.usage = translateBufferUsage(m_Description.usage);
 		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = translateMemoryType(m_Desc.memoryType);
+		allocInfo.usage = translateMemoryType(m_Description.memoryType);
 
-		if (m_Desc.mapped) {
+		if (m_Description.mapped) {
 			allocInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
 		}
 
-		if (vmaCreateBuffer(m_VulkanDevice->getAllocator(), &bufferInfo, &allocInfo,
+		if (vmaCreateBuffer(((VulkanDevice*)m_Device)->getAllocator(), &bufferInfo, &allocInfo,
 			&m_Buffer, &m_Allocation, nullptr) != VK_SUCCESS) {
 			return false;
 		}
 
-		// If initial data is provided, map and copy it
-		if (initialData) {
-			void* mappedData = map();
-			if (mappedData) {
-				memcpy(mappedData, initialData, m_Desc.size);
-				if (!m_Desc.mapped) {
-					unmap();
-				}
-			}
-		}
-
 		return true;
-	}
-
-	void VulkanBuffer::cleanup() {
-		if (m_Buffer) {
-			vmaDestroyBuffer(m_VulkanDevice->getAllocator(), m_Buffer, m_Allocation);
-			m_Buffer = VK_NULL_HANDLE;
-			m_Allocation = VK_NULL_HANDLE;
-		}
 	}
 
 	void* VulkanBuffer::map() {
@@ -60,7 +45,7 @@ namespace rhi::vulkan {
 			return m_MappedData;
 		}
 
-		if (vmaMapMemory(m_VulkanDevice->getAllocator(), m_Allocation, &m_MappedData) != VK_SUCCESS) {
+		if (vmaMapMemory(((VulkanDevice*)m_Device)->getAllocator(), m_Allocation, &m_MappedData) != VK_SUCCESS) {
 			return nullptr;
 		}
 
@@ -69,11 +54,11 @@ namespace rhi::vulkan {
 	}
 
 	void VulkanBuffer::unmap() {
-		if (!m_Mapped || m_Desc.mapped) {
+		if (!m_Mapped || m_Description.mapped) {
 			return;
 		}
 
-		vmaUnmapMemory(m_VulkanDevice->getAllocator(), m_Allocation);
+		vmaUnmapMemory(((VulkanDevice*)m_Device)->getAllocator(), m_Allocation);
 		m_MappedData = nullptr;
 		m_Mapped = false;
 	}
@@ -83,6 +68,10 @@ namespace rhi::vulkan {
 		addressInfo.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO;
 		addressInfo.buffer = m_Buffer;
 
-		return vkGetBufferDeviceAddress(m_VulkanDevice->getDevice(), &addressInfo);
+		return vkGetBufferDeviceAddress(((VulkanDevice*)m_Device)->getDevice(), &addressInfo);
+	}
+	void* VulkanBuffer::getCpuAddress() 
+	{
+		return m_MappedData;
 	}
 }

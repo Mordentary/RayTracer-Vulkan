@@ -41,7 +41,7 @@ namespace SE
 		swapchainDesc.format = rhi::Format::R8G8B8A8_UNORM;
 		swapchainDesc.vsync = true;
 
-		m_Swapchain.reset(m_Device->createSwapchain(swapchainDesc));
+		m_Swapchain.reset(m_Device->createSwapchain(swapchainDesc, "MainSwapchain"));
 
 		initFrameResources();
 	}

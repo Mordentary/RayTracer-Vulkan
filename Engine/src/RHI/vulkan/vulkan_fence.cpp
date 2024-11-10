@@ -3,20 +3,20 @@
 #include"vulkan_core.hpp"
 namespace rhi::vulkan
 {
-	VulkanFence::VulkanFence(VulkanDevice* pDevice, const std::string& name)
+	VulkanFence::VulkanFence(VulkanDevice* device, const std::string& name)
 	{
-		m_pDevice = pDevice;
+		m_Device = device;
 		m_DebugName = name;
 	}
 
 	VulkanFence::~VulkanFence()
 	{
-		//((VulkanDevice*)m_pDevice)->destroyResource(m_Semaphore);
+		((VulkanDevice*)m_Device)->enqueueDeletion(m_Semaphore);
 	}
 
 	bool VulkanFence::create()
 	{
-		VkDevice device = ((VulkanDevice*)m_pDevice)->getDevice();
+		VkDevice device = ((VulkanDevice*)m_Device)->getDevice();
 
 		VkSemaphoreTypeCreateInfo timelineCreateInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO };
 		timelineCreateInfo.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE;
@@ -28,7 +28,7 @@ namespace rhi::vulkan
 		VkResult result = vkCreateSemaphore(device, &createInfo, nullptr, &m_Semaphore);
 		if (result != VK_SUCCESS)
 		{
-			SE::LogError("[VulkanFence] creation is failed{}", m_DebugName);
+			SE::LogError("VulkanFence creation is failed: {}", m_DebugName);
 			return false;
 		}
 
@@ -44,7 +44,7 @@ namespace rhi::vulkan
 		info.pSemaphores = &m_Semaphore;
 		info.pValues = &value;
 
-		vkWaitSemaphores((VkDevice)m_pDevice->getHandle(), &info, UINT64_MAX);
+		vkWaitSemaphores((VkDevice)m_Device->getHandle(), &info, UINT64_MAX);
 	}
 
 	void VulkanFence::signal(uint64_t value)
@@ -53,6 +53,6 @@ namespace rhi::vulkan
 		info.semaphore = m_Semaphore;
 		info.value = value;
 
-		vkSignalSemaphore((VkDevice)m_pDevice->getHandle(), &info);
+		vkSignalSemaphore((VkDevice)m_Device->getHandle(), &info);
 	}
 }

@@ -8,7 +8,7 @@ namespace rhi::vulkan
 	class VulkanFence : public Fence
 	{
 	public:
-		VulkanFence(VulkanDevice* pDevice, const std::string& name);
+		VulkanFence(VulkanDevice* device, const std::string& name);
 		~VulkanFence();
 
 		bool create();

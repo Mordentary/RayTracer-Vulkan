@@ -4,6 +4,5 @@ namespace rhi {
 	public:
 		virtual void wait(uint64_t value) = 0;
 		virtual void signal(uint64_t value) = 0;
-		virtual bool isSignaled() = 0;
 	};
 }
