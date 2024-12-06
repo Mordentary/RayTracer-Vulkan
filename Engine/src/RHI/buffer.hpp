@@ -3,14 +3,6 @@
 #include "types.hpp"
 
 namespace rhi {
-	struct BufferDescription {
-		uint64_t size = 0;
-		uint32_t stride = 0;
-		MemoryType memoryType = MemoryType::GpuOnly;
-		BufferUsageFlags usage = BufferUsageFlags::None;
-		bool mapped = false;           // Whether buffer should be persistently mapped
-	};
-
 	class Buffer : public Resource {
 	public:
 		virtual ~Buffer() = default;

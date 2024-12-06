@@ -9,14 +9,14 @@ namespace windows
 namespace SE {
 	Window::Window(const std::string& title, uint32_t width, uint32_t height)
 		: m_Width(width), m_Height(height), m_Minimized(false), m_Running(true) {
-		init(title, width, height);
+		create(title, width, height);
 	}
 
 	Window::~Window() {
 		shutdown();
 	}
 
-	void Window::init(const std::string& title, uint32_t width, uint32_t height) {
+	void Window::create(const std::string& title, uint32_t width, uint32_t height) {
 		windows::SetProcessDPIAware();
 		int err = SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS);
 		SE_ASSERT_MSG((err == 0), "SDL INIT FAILED");

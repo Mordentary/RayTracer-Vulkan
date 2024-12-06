@@ -1,5 +1,5 @@
 #include "vulkan_device.hpp"
-#include<VkBootstrap.h>
+#include <VkBootstrap.h>
 #define VOLK_IMPLEMENTATION
 #include <volk/volk.h>
 #define VMA_IMPLEMENTATION
@@ -9,6 +9,11 @@
 #include "vulkan_swapchain.hpp"
 #include "vulkan_buffer.hpp"
 #include "vulkan_fence.hpp"
+#include "vulkan_shader.hpp"
+#include "vulkan_deletion_queue.hpp"
+#include "vulkan_pipeline.hpp"
+#include "vulkan_command_list.hpp"
+#include "vulkan_descriptor.hpp"
 
 namespace rhi::vulkan {
 	namespace
@@ -111,6 +116,12 @@ namespace rhi::vulkan {
 		}
 	}
 
+	VulkanConstantBufferAllocator* VulkanDevice::getConstantBufferAllocator() const
+	{
+		uint32_t index = m_FrameID % SE::SE_MAX_FRAMES_IN_FLIGHT;
+		return m_ConstantBufferAllocators[index].get();
+	}
+
 	void VulkanDevice::enqueueDefaultLayoutTransition(Texture* texture) {
 		const TextureDescription& desc = texture->getDescription();
 
@@ -127,20 +138,9 @@ namespace rhi::vulkan {
 			if (anySet(desc.usage, TextureUsageFlags::DepthStencil)) {
 				accessFlags |= ResourceAccessFlags::DepthStencilAccess;
 			}
-			if (anySet(desc.usage, TextureUsageFlags::UnorderedAccess)) {
-				accessFlags |= ResourceAccessFlags::UnorderedAccess;
+			if (anySet(desc.usage, TextureUsageFlags::ShaderStorage)) {
+				accessFlags |= ResourceAccessFlags::ShaderStorage;
 			}
-			if (anySet(desc.usage, TextureUsageFlags::ShaderResource)) {
-				accessFlags |= ResourceAccessFlags::ShaderResourceAccess;
-			}
-			if (anySet(desc.usage, TextureUsageFlags::TransferSrc)) {
-				accessFlags |= ResourceAccessFlags::TransferSrc;
-			}
-			if (anySet(desc.usage, TextureUsageFlags::TransferDst)) {
-				accessFlags |= ResourceAccessFlags::TransferDst;
-			}
-
-			// Default to TransferDst if no access flags are set
 			if (accessFlags == ResourceAccessFlags::None) {
 				accessFlags = ResourceAccessFlags::TransferDst;
 			}
@@ -148,15 +148,15 @@ namespace rhi::vulkan {
 
 		// Enqueue transitions based on accessFlags using AnySet
 		if (anySet(accessFlags, ResourceAccessFlags::RenderTarget | ResourceAccessFlags::DepthStencilAccess |
-			ResourceAccessFlags::UnorderedAccess | ResourceAccessFlags::ShaderResourceAccess | ResourceAccessFlags::Present)) {
-			m_pendingGraphicsTransitions.emplace_back(texture, accessFlags);
+			ResourceAccessFlags::ShaderStorage | ResourceAccessFlags::Present)) {
+			m_PendingGraphicsTransitions.emplace_back(texture, accessFlags);
 		}
 		else if (anySet(accessFlags, ResourceAccessFlags::TransferSrc | ResourceAccessFlags::TransferDst)) {
-			m_pendingCopyTransitions.emplace_back(texture, accessFlags);
+			m_PendingCopyTransitions.emplace_back(texture, accessFlags);
 		}
 		else {
 			// Default to graphics transitions
-			m_pendingGraphicsTransitions.emplace_back(texture, accessFlags);
+			m_PendingGraphicsTransitions.emplace_back(texture, accessFlags);
 		}
 	}
 
@@ -166,50 +166,166 @@ namespace rhi::vulkan {
 				[texture](const auto& pair) { return pair.first == texture; }), transitions.end());
 			};
 
-		removeTransition(m_pendingGraphicsTransitions);
-		removeTransition(m_pendingCopyTransitions);
+		removeTransition(m_PendingGraphicsTransitions);
+		removeTransition(m_PendingCopyTransitions);
 	}
 
 	void VulkanDevice::flushLayoutTransition(CommandType transitionType) {
-		//const uint32_t frameIndex = m_FrameCount % SE_MAX_FRAMES_IN_FLIGHT;
+		const uint32_t frameIndex = m_FrameID % SE::SE_MAX_FRAMES_IN_FLIGHT;
 
-		//if (transitionType == CommandType::Graphics) {
-		//	if (!m_pendingGraphicsTransitions.empty()) {
-		//		auto cmdList = m_transitionGraphicsCmdLists[frameIndex].get();
-		//		cmdList->begin();
+		if (transitionType == CommandType::Graphics) {
+			if (!m_PendingGraphicsTransitions.empty()) {
+				auto cmdList = m_TransitionGraphicsCommandList[frameIndex].get();
+				cmdList->begin();
 
-		//		// Process graphics transitions
-		//		for (const auto& [texture, accessFlags] : m_pendingGraphicsTransitions) {
-		//			cmdList->textureBarrier(texture, ALL_SUBRESOURCES,
-		//				ResourceAccessFlags::Discard, accessFlags);
-		//		}
-		//		m_pendingGraphicsTransitions.clear();
+				// Process graphics transitions
+				for (const auto& [texture, accessFlags] : m_PendingGraphicsTransitions) {
+					cmdList->textureBarrier(texture,
+						ResourceAccessFlags::Discard, accessFlags);
+				}
+				m_PendingGraphicsTransitions.clear();
 
-		//		cmdList->end();
-		//		cmdList->submit();
-		//	}
-		//}
-		//else if (queueType == CommandQueueType::Copy) {
-		//	if (!m_pendingCopyTransitions.empty()) {
-		//		auto cmdList = m_transitionCopyCmdLists[frameIndex].get();
-		//		cmdList->begin();
+				cmdList->end();
+				cmdList->submit();
+			}
+		}
+		else if (transitionType == CommandType::Copy) {
+			if (!m_PendingCopyTransitions.empty()) {
+				auto cmdList = m_TransitionCopyCommandList[frameIndex].get();
+				cmdList->begin();
 
-		//		// Process copy transitions
-		//		for (const auto& [texture, accessFlags] : m_pendingCopyTransitions) {
-		//			cmdList->textureBarrier(texture, ALL_SUBRESOURCES,
-		//				ResourceAccessFlags::Discard, accessFlags);
-		//		}
-		//		m_pendingCopyTransitions.clear();
+				// Process copy transitions
+				for (const auto& [texture, accessFlags] : m_PendingCopyTransitions) {
+					cmdList->textureBarrier(texture,
+						ResourceAccessFlags::Discard, accessFlags);
+				}
+				m_PendingCopyTransitions.clear();
 
-		//		cmdList->end();
-		//		cmdList->submit();
-		//	}
-		//}
+				cmdList->end();
+				cmdList->submit();
+			}
+		}
 	}
-	bool VulkanDevice::init(const DeviceDescription& desc)
+	bool VulkanDevice::create(const DeviceDescription& desc)
 	{
 		VK_CHECK(volkInitialize());
+		SE_ASSERT(createDevice(), "Device creation failed");
+		SE_ASSERT(createPipelineLayout(), "PipelineLayout creation failed");
 
+		VmaVulkanFunctions vmaVulkanFuncs{};
+		vmaVulkanFuncs.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+		vmaVulkanFuncs.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+
+		VmaAllocatorCreateInfo allocatorInfo = {};
+		allocatorInfo.physicalDevice = m_PhysicalDevice;
+		allocatorInfo.device = m_Device;
+		allocatorInfo.instance = m_Instance;
+		allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+		allocatorInfo.pVulkanFunctions = &vmaVulkanFuncs;
+		vmaCreateAllocator(&allocatorInfo, &m_Allocator);
+
+		m_DeletionQueue = SE::CreateScoped<VulkanDeletionQueue>(this);
+
+		for (size_t i = 0; i < SE::SE_MAX_FRAMES_IN_FLIGHT; ++i)
+		{
+			m_TransitionCopyCommandList[i] = SE::Scoped<CommandList>(createCommandList(CommandType::Copy, "Transition CommandList[Transfer]"));
+			m_TransitionGraphicsCommandList[i] = SE::Scoped<CommandList>(createCommandList(CommandType::Graphics, "Transition CommandList[Graphics]"));
+			m_ConstantBufferAllocators[i] = SE::CreateScoped<VulkanConstantBufferAllocator>(this, 8 * 1024 * 1024);
+		}
+
+		VkPhysicalDeviceProperties2 properties = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
+		properties.pNext = &m_DescriptorBufferProperties;
+		vkGetPhysicalDeviceProperties2(m_PhysicalDevice, &properties);
+
+		size_t resourceDescriptorSize = m_DescriptorBufferProperties.sampledImageDescriptorSize;
+		resourceDescriptorSize = std::max(resourceDescriptorSize, m_DescriptorBufferProperties.storageImageDescriptorSize);
+		resourceDescriptorSize = std::max(resourceDescriptorSize, m_DescriptorBufferProperties.robustUniformTexelBufferDescriptorSize);
+		resourceDescriptorSize = std::max(resourceDescriptorSize, m_DescriptorBufferProperties.robustStorageTexelBufferDescriptorSize);
+		resourceDescriptorSize = std::max(resourceDescriptorSize, m_DescriptorBufferProperties.robustUniformBufferDescriptorSize);
+		resourceDescriptorSize = std::max(resourceDescriptorSize, m_DescriptorBufferProperties.robustStorageBufferDescriptorSize);
+		resourceDescriptorSize = std::max(resourceDescriptorSize, m_DescriptorBufferProperties.accelerationStructureDescriptorSize);
+
+		size_t samplerDescriptorSize = m_DescriptorBufferProperties.samplerDescriptorSize;
+		m_ResourceDescriptorAllocator = SE::CreateScoped<VulkanDescriptorAllocator>(this, (uint32_t)resourceDescriptorSize, SE_MAX_RESOURCE_DESCRIPTOR_COUNT, VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT);
+		m_SamplerDescriptorAllocator = SE::CreateScoped<VulkanDescriptorAllocator>(this, (uint32_t)samplerDescriptorSize, SE_MAX_SAMPLER_DESCRIPTOR_COUNT, VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT);
+
+		return true;
+	}
+
+	bool VulkanDevice::createPipelineLayout()
+	{
+		VkDescriptorType mutableDescriptorTypes[7] =
+		{
+			VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+			VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+			VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
+			VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+			VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR
+		};
+
+		VkMutableDescriptorTypeListEXT mutableDescriptorList;
+		mutableDescriptorList.descriptorTypeCount = 7;
+		mutableDescriptorList.pDescriptorTypes = mutableDescriptorTypes;
+
+		VkMutableDescriptorTypeCreateInfoEXT mutableDescriptorInfo = { VK_STRUCTURE_TYPE_MUTABLE_DESCRIPTOR_TYPE_CREATE_INFO_EXT };
+		mutableDescriptorInfo.mutableDescriptorTypeListCount = 1;
+		mutableDescriptorInfo.pMutableDescriptorTypeLists = &mutableDescriptorList;
+
+		VkDescriptorSetLayoutBinding uniformBuffer[SE_MAX_UBV_BINDINGS] = {};
+		uniformBuffer[0].descriptorType = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
+		uniformBuffer[0].descriptorCount = sizeof(uint32_t) * SE_MAX_PUSH_CONSTANTS;
+		uniformBuffer[0].stageFlags = VK_SHADER_STAGE_ALL;
+
+		for (uint32_t i = 1; i < SE_MAX_UBV_BINDINGS; ++i)
+		{
+			uniformBuffer[i].binding = i;
+			uniformBuffer[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+			uniformBuffer[i].descriptorCount = 1;
+			uniformBuffer[i].stageFlags = VK_SHADER_STAGE_ALL;
+		}
+
+		VkDescriptorSetLayoutBinding mutableResourceBinding = {};
+		mutableResourceBinding.descriptorType = VK_DESCRIPTOR_TYPE_MUTABLE_EXT;
+		mutableResourceBinding.descriptorCount = SE_MAX_RESOURCE_DESCRIPTOR_COUNT;
+		mutableResourceBinding.stageFlags = VK_SHADER_STAGE_ALL;
+
+		VkDescriptorSetLayoutBinding staticSamplerBinding = {};
+		staticSamplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		staticSamplerBinding.descriptorCount = SE_MAX_SAMPLER_DESCRIPTOR_COUNT;
+		staticSamplerBinding.stageFlags = VK_SHADER_STAGE_ALL;
+
+		VkDescriptorSetLayoutCreateInfo setLayoutInfo0 = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO }; // constant buffers
+		setLayoutInfo0.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+		setLayoutInfo0.bindingCount = SE_MAX_UBV_BINDINGS;
+		setLayoutInfo0.pBindings = uniformBuffer;
+
+		VkDescriptorSetLayoutCreateInfo setLayoutInfo1 = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO }; // resource descriptor array
+		setLayoutInfo1.pNext = &mutableDescriptorInfo;
+		setLayoutInfo1.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+		setLayoutInfo1.bindingCount = 1;
+		setLayoutInfo1.pBindings = &mutableResourceBinding;
+
+		VkDescriptorSetLayoutCreateInfo setLayoutInfo2 = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO }; // sampler descriptor array
+		setLayoutInfo2.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+		setLayoutInfo2.bindingCount = 1;
+		setLayoutInfo2.pBindings = &staticSamplerBinding;
+
+		vkCreateDescriptorSetLayout(m_Device, &setLayoutInfo0, nullptr, &m_descriptorSetLayout[0]);
+		vkCreateDescriptorSetLayout(m_Device, &setLayoutInfo1, nullptr, &m_descriptorSetLayout[1]);
+		vkCreateDescriptorSetLayout(m_Device, &setLayoutInfo2, nullptr, &m_descriptorSetLayout[2]);
+
+		VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+		createInfo.setLayoutCount = 3;
+		createInfo.pSetLayouts = m_descriptorSetLayout;
+
+		VK_CHECK_RETURN(vkCreatePipelineLayout(m_Device, &createInfo, nullptr, &m_PipelineLayout), false, "Pipeline layout creation failed!");
+		return true;
+	}
+
+	vkb::Instance createInstance(const DeviceDescription& desc)
+	{
 		vkb::InstanceBuilder builder;
 
 		const char* khronosValidationLayer = "VK_LAYER_KHRONOS_validation";
@@ -239,7 +355,7 @@ namespace rhi::vulkan {
 		createInfo.pUserData = nullptr;
 
 		auto inst_ret = builder.set_app_name("SingularityEngine")
-			.request_validation_layers(m_Description.enableValidation)
+			.request_validation_layers(desc.enableValidation)
 			.set_debug_callback(debugCallback)
 			.set_debug_callback_user_data_pointer(&createInfo)
 			.add_validation_feature_enable(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT)
@@ -249,7 +365,7 @@ namespace rhi::vulkan {
 			.require_api_version(1, 3, 0);
 
 		// Enable Khronos validation layer if available
-		if (khronosValidationAvailable && m_Description.enableValidation) {
+		if (khronosValidationAvailable && desc.enableValidation) {
 			builder.enable_layer(khronosValidationLayer);
 		}
 
@@ -262,78 +378,66 @@ namespace rhi::vulkan {
 		SE_ASSERT(built_instance, "Failed to create Vulkan instance!");
 
 		auto vkb_inst = built_instance.value();
-		m_Instance = vkb_inst.instance;
-		m_DebugMessenger = vkb_inst.debug_messenger;
+
+		return vkb_inst;
+	}
+	bool VulkanDevice::createDevice()
+	{
+		auto vkbInst = createInstance(m_Description);
+
+		m_Instance = vkbInst.instance;
+		m_DebugMessenger = vkbInst.debug_messenger;
 		volkLoadInstance(m_Instance);
 
-		// Define required extensions
-		std::vector<const char*> required_extensions = {
+		// Required extensions stay the same, just organized better
+		const std::vector<const char*> required_extensions = {
 			"VK_KHR_swapchain",
-			//"VK_KHR_swapchain_mutable_format",
 			"VK_KHR_maintenance1",
 			"VK_KHR_maintenance2",
 			"VK_KHR_maintenance3",
 			"VK_KHR_maintenance4",
 			"VK_KHR_buffer_device_address",
-			//"VK_KHR_deferred_host_operations",
-			//"VK_KHR_acceleration_structure",
-			//"VK_KHR_ray_query",
+			"VK_KHR_deferred_host_operations",
+			"VK_KHR_acceleration_structure",
+			"VK_KHR_ray_query",
 			"VK_KHR_dynamic_rendering",
 			"VK_KHR_synchronization2",
 			"VK_KHR_copy_commands2",
 			"VK_KHR_bind_memory2",
 			"VK_KHR_timeline_semaphore",
 			"VK_KHR_dedicated_allocation",
-			"VK_EXT_mesh_shader",
-			//"VK_EXT_descriptor_indexing",
-			//"VK_EXT_mutable_descriptor_type",
-			//"VK_EXT_descriptor_buffer",
-			//"VK_EXT_scalar_block_layout",
+			"VK_EXT_descriptor_indexing",
+			"VK_EXT_mutable_descriptor_type",
+			"VK_EXT_descriptor_buffer",
+			"VK_EXT_scalar_block_layout"
 		};
 
-		// Set up Vulkan feature structures and chain them
-		VkPhysicalDeviceVulkan12Features vulkan12Features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+		// Chain features properly
+		VkPhysicalDeviceVulkan12Features vulkan12Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
 		vulkan12Features.descriptorIndexing = VK_TRUE;
 		vulkan12Features.bufferDeviceAddress = VK_TRUE;
 
-		VkPhysicalDeviceVulkan13Features vulkan13Features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+		VkPhysicalDeviceVulkan13Features vulkan13Features{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
 		vulkan13Features.pNext = &vulkan12Features;
 		vulkan13Features.dynamicRendering = VK_TRUE;
 		vulkan13Features.synchronization2 = VK_TRUE;
+		vulkan13Features.inlineUniformBlock = VK_TRUE;
 
-		//VkPhysicalDeviceRayQueryFeaturesKHR rayQueryFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR };
-		//rayQueryFeatures.pNext = &vulkan13Features;
-		//rayQueryFeatures.rayQuery = VK_TRUE;
+		VkPhysicalDeviceMutableDescriptorTypeFeaturesEXT mutableDescriptorFeatures{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MUTABLE_DESCRIPTOR_TYPE_FEATURES_EXT };
+		mutableDescriptorFeatures.pNext = &vulkan13Features;
+		mutableDescriptorFeatures.mutableDescriptorType = VK_TRUE;
 
-		VkPhysicalDeviceMeshShaderFeaturesEXT meshShaderFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_EXT };
-		meshShaderFeatures.pNext = &vulkan13Features;
-		meshShaderFeatures.meshShader = VK_TRUE;
-		meshShaderFeatures.taskShader = VK_TRUE;
+		VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptorBufferFeatures{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT };
+		descriptorBufferFeatures.pNext = &mutableDescriptorFeatures;
+		descriptorBufferFeatures.descriptorBuffer = VK_TRUE;
 
-		//VkPhysicalDeviceMutableDescriptorTypeFeaturesEXT mutableDescriptorFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MUTABLE_DESCRIPTOR_TYPE_FEATURES_EXT };
-		//mutableDescriptorFeatures.pNext = &meshShaderFeatures;
-		//mutableDescriptorFeatures.mutableDescriptorType = VK_TRUE;
+		VkPhysicalDeviceFeatures2 features2{ .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+		features2.pNext = &descriptorBufferFeatures;
 
-		//VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptorBufferFeatures = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT };
-		//descriptorBufferFeatures.pNext = &mutableDescriptorFeatures;
-		//descriptorBufferFeatures.descriptorBuffer = VK_TRUE;
-
-		// Root of the pNext chain
-		VkPhysicalDeviceFeatures2 features2 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
-		features2.pNext = &vulkan13Features;
-
-		// Select the physical device
-		vkb::PhysicalDeviceSelector selector{ vkb_inst };
-		selector.set_minimum_version(1, 3);
-
-		// Add required extensions
-		for (const char* ext : required_extensions) {
-			selector.add_required_extension(ext);
-		}
-
-		// Add required features
-		selector.set_required_features_12(vulkan12Features);
-		selector.set_required_features_13(vulkan13Features);
+		vkb::PhysicalDeviceSelector selector{ vkbInst };
+		selector.set_minimum_version(1, 3)
+			.add_required_extensions(required_extensions)
+			.add_required_extension_features(descriptorBufferFeatures);
 
 		// Select the physical device
 		auto physicalDeviceResult = selector.defer_surface_initialization().select();
@@ -351,10 +455,10 @@ namespace rhi::vulkan {
 		//	return EXIT_FAILURE;
 		//}
 
-		if (!vkbPhysicalDevice.enable_extension_features_if_present(meshShaderFeatures)) {
-			SE::LogWarn("Mesh Shader features not supported by the selected physical device");
-			return EXIT_FAILURE;
-		}
+		//if (!vkbPhysicalDevice.enable_extension_features_if_present(meshShaderFeatures)) {
+		//	SE::LogWarn("Mesh Shader features not supported by the selected physical device");
+		//	return EXIT_FAILURE;
+		//}
 
 		//if (!vkbPhysicalDevice.enable_extension_features_if_present(mutableDescriptorFeatures)) {
 		//	std::cerr << "Mutable Descriptor Type features not supported by the selected physical device." << std::endl;
@@ -392,38 +496,30 @@ namespace rhi::vulkan {
 		m_ComputeQueueIndex = vkbDevice.get_queue_index(vkb::QueueType::compute).value();
 		m_CopyQueue = vkbDevice.get_queue(vkb::QueueType::transfer).value();
 		m_CopyQueueIndex = vkbDevice.get_queue_index(vkb::QueueType::transfer).value();
-
-		VmaVulkanFunctions vmaVulkanFuncs{};
-		vmaVulkanFuncs.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
-		vmaVulkanFuncs.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
-
-		VmaAllocatorCreateInfo allocatorInfo = {};
-		allocatorInfo.physicalDevice = m_PhysicalDevice;
-		allocatorInfo.device = m_Device;
-		allocatorInfo.instance = m_Instance;
-		allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
-		allocatorInfo.pVulkanFunctions = &vmaVulkanFuncs;
-		vmaCreateAllocator(&allocatorInfo, &m_Allocator);
-
-		return true;
 	}
 
 	VulkanDevice::VulkanDevice(const DeviceDescription& desc)
 	{
-		init(desc);
-		m_DeletionQueue = SE::CreateScoped<VulkanDeletionQueue>(this);
+		create(desc);
 	}
 
 	VulkanDevice::~VulkanDevice()
 	{
-
-		for (size_t i = 0; i < SE_MAX_FRAMES_IN_FLIGHT; ++i)
+		for (size_t i = 0; i < SE::SE_MAX_FRAMES_IN_FLIGHT; ++i)
 		{
-			m_transitionCopyCommandList[i].reset();
-			m_transitionGraphicsCommandList[i].reset();
+			m_TransitionCopyCommandList[i].reset();
+			m_TransitionGraphicsCommandList[i].reset();
+			m_ConstantBufferAllocators[i].reset();
 		}
 		m_DeletionQueue.reset();
+		m_ResourceDescriptorAllocator.reset();
+		m_SamplerDescriptorAllocator.reset();
+
 		vmaDestroyAllocator(m_Allocator);
+		vkDestroyDescriptorSetLayout(m_Device, m_descriptorSetLayout[0], nullptr);
+		vkDestroyDescriptorSetLayout(m_Device, m_descriptorSetLayout[1], nullptr);
+		vkDestroyDescriptorSetLayout(m_Device, m_descriptorSetLayout[2], nullptr);
+		vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
 		vkDestroyDevice(m_Device, nullptr);
 		vkDestroyDebugUtilsMessengerEXT(m_Instance, m_DebugMessenger, nullptr);
 		vkDestroyInstance(m_Instance, nullptr);
@@ -449,6 +545,38 @@ namespace rhi::vulkan {
 		return texture;
 	}
 
+	Shader* VulkanDevice::createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name)
+	{
+		VulkanShader* texture = new VulkanShader(this, desc, name);
+		if (!texture->create(data))
+		{
+			delete texture;
+			return nullptr;
+		}
+		return texture;
+	}
+
+	Pipeline* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name)
+	{
+		VulkanGraphicsPipeline* pipeline = new VulkanGraphicsPipeline(this, desc, name);
+		if (!pipeline->create())
+		{
+			delete pipeline;
+			return nullptr;
+		}
+		return pipeline;
+	}
+
+	Pipeline* VulkanDevice::createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name)
+	{
+		VulkanComputePipeline* pipeline = new VulkanComputePipeline(this, desc, name);
+		if (!pipeline->create())
+		{
+			delete pipeline;
+			return nullptr;
+		}
+		return pipeline;
+	}
 	Swapchain* VulkanDevice::createSwapchain(const SwapchainDescription& desc, const std::string& name) {
 		VulkanSwapchain* swapchain = new VulkanSwapchain(this, desc, name);
 		if (!swapchain->create())
@@ -460,27 +588,14 @@ namespace rhi::vulkan {
 	}
 
 	CommandList* VulkanDevice::createCommandList(CommandType type, const std::string& name) {
-		return nullptr;
+		VulkanCommandList* commandList = new VulkanCommandList(this, type, name);
+		if (!commandList->create())
+		{
+			delete commandList;
+			return nullptr;
+		}
+		return commandList;
 	}
-
-	void VulkanDevice::beginFrame()
-	{
-		m_DeletionQueue->flush();
-
-		uint32_t index = m_FrameID % SE_MAX_FRAMES_IN_FLIGHT;
-		//m_transitionCopyCommandList[index]->ResetAllocator();
-		//m_transitionGraphicsCommandList[index]->ResetAllocator();
-
-		//m_constantBufferAllocators[index]->Reset();
-
-	}
-
-	void VulkanDevice::endFrame()
-	{
-		++m_FrameID;
-		vmaSetCurrentFrameIndex(m_Allocator, (uint32_t)m_FrameID);
-	}
-
 	Fence* VulkanDevice::createFence(const std::string& name) {
 		VulkanFence* fence = new VulkanFence(this, name);
 		if (!fence->create())
@@ -489,5 +604,127 @@ namespace rhi::vulkan {
 			return nullptr;
 		}
 		return fence;
+	}
+
+	Descriptor* VulkanDevice::createShaderResourceDescriptor(Resource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name)
+	{
+		VulkanShaderResourceDescriptor* resourceDescriptor = new VulkanShaderResourceDescriptor(this, resource, desc, name);
+		if (!resourceDescriptor->create())
+		{
+			delete resourceDescriptor;
+			return nullptr;
+		}
+		return resourceDescriptor;
+	}
+
+	Descriptor* VulkanDevice::createUnorderedAccessDescriptor(Resource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name)
+	{
+		VulkanUnorderedAccessDescriptor* storageDescriptor = new VulkanUnorderedAccessDescriptor(this, resource, desc, name);
+		if (!storageDescriptor->create())
+		{
+			delete storageDescriptor;
+			return nullptr;
+		}
+		return storageDescriptor;
+	}
+
+	Descriptor* VulkanDevice::createConstantBufferDescriptor(Buffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name)
+	{
+		VulkanConstantBufferDescriptor* uniformDescriptor = new VulkanConstantBufferDescriptor(this, buffer, desc, name);
+		if (!uniformDescriptor->create())
+		{
+			delete uniformDescriptor;
+			return nullptr;
+		}
+		return uniformDescriptor;
+	}
+
+	Descriptor* VulkanDevice::createSampler(const SamplerDescription& desc, const std::string& name)
+	{
+		VulkanSamplerDescriptor* samplerDescriptor = new VulkanSamplerDescriptor(this, desc, name);
+		if (!samplerDescriptor->create())
+		{
+			delete samplerDescriptor;
+			return nullptr;
+		}
+		return samplerDescriptor;
+	}
+
+	uint32_t VulkanDevice::allocateResourceDescriptor(void** descriptor)
+	{
+		return m_ResourceDescriptorAllocator->allocate(descriptor);
+	}
+
+	uint32_t VulkanDevice::allocateSamplerDescriptor(void** descriptor)
+	{
+		return m_SamplerDescriptorAllocator->allocate(descriptor);
+	}
+
+	void VulkanDevice::freeResourceDescriptor(uint32_t index)
+	{
+		m_ResourceDescriptorAllocator->free(index);
+	}
+
+	void VulkanDevice::freeSamplerDescriptor(uint32_t index)
+	{
+		m_SamplerDescriptorAllocator->free(index);
+	}
+
+	VkDeviceAddress VulkanDevice::allocateUniformBuffer(const void* data, size_t data_size)
+	{
+		void* cpuAddress;
+		VkDeviceAddress gpuAddress;
+		getConstantBufferAllocator()->allocate((uint32_t)data_size, &cpuAddress, &gpuAddress);
+
+		memcpy(cpuAddress, data, data_size);
+
+		return gpuAddress;
+	}
+
+	VkDeviceSize VulkanDevice::allocateUniformBufferDescriptor(const uint32_t* cbv0, const VkDescriptorAddressInfoEXT& ubv1, const VkDescriptorAddressInfoEXT& ubv2)
+	{
+		size_t descriptorBufferSize = sizeof(uint32_t) * SE_MAX_PUSH_CONSTANTS + m_DescriptorBufferProperties.robustUniformBufferDescriptorSize * 2;
+		void* cpuAddress;
+		VkDeviceAddress gpuAddress;
+		getConstantBufferAllocator()->allocate((uint32_t)descriptorBufferSize, &cpuAddress, &gpuAddress);
+
+		memcpy(cpuAddress, cbv0, sizeof(uint32_t) * SE_MAX_PUSH_CONSTANTS);
+
+		VkDescriptorGetInfoEXT descriptorInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_GET_INFO_EXT };
+		descriptorInfo.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+		if (ubv1.address != 0)
+		{
+			descriptorInfo.data.pUniformBuffer = &ubv1;
+			vkGetDescriptorEXT(m_Device, &descriptorInfo, m_DescriptorBufferProperties.robustUniformBufferDescriptorSize,
+				(char*)cpuAddress + sizeof(uint32_t) * SE_MAX_PUSH_CONSTANTS);
+		}
+
+		if (ubv2.address != 0)
+		{
+			descriptorInfo.data.pUniformBuffer = &ubv2;
+			vkGetDescriptorEXT(m_Device, &descriptorInfo, m_DescriptorBufferProperties.robustUniformBufferDescriptorSize,
+				(char*)cpuAddress + sizeof(uint32_t) * SE_MAX_PUSH_CONSTANTS + m_DescriptorBufferProperties.robustUniformBufferDescriptorSize);
+		}
+
+		VkDeviceSize descriptorBufferOffset = gpuAddress - getConstantBufferAllocator()->getGpuAddress();
+		return descriptorBufferOffset;
+	}
+
+	void VulkanDevice::beginFrame()
+	{
+		m_DeletionQueue->flush();
+		uint32_t index = m_FrameID % SE::SE_MAX_FRAMES_IN_FLIGHT;
+
+		m_TransitionCopyCommandList[index]->resetAllocator();
+		m_TransitionGraphicsCommandList[index]->resetAllocator();
+
+		m_ConstantBufferAllocators[index]->reset();
+	}
+
+	void VulkanDevice::endFrame()
+	{
+		++m_FrameID;
+		vmaSetCurrentFrameIndex(m_Allocator, (uint32_t)m_FrameID);
 	}
 }

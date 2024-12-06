@@ -1,7 +1,6 @@
 #include "Camera.h"
 #include <algorithm>
 #include <cmath>
-#include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
@@ -36,7 +35,7 @@ namespace SE {
 		const glm::vec3& target, float fov, float aspectRatio)
 		: m_Position(position)
 		, m_Fov(clampFov(fov))
-		, m_AspectRatio(clampAspectRatio(state->availableSpace.x / state->availableSpace.y))
+		, m_AspectRatio(clampAspectRatio(state->renderTargetSize.x / state->renderTargetSize.y))
 		, m_ViewportState(state)
 		, m_Window(window)
 	{
@@ -248,4 +247,4 @@ namespace SE {
 		m_Fov = clampFov(fov);
 		updateProjectionMatrix();
 	}
-} // namespace SE
+}

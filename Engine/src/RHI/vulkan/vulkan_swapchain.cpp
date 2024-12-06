@@ -41,7 +41,7 @@ namespace rhi::vulkan {
 		VkSwapchainKHR oldSwapchain = m_Swapchain;
 
 		auto vkbSwapchain = builder
-			.set_desired_format({ toVulkanFormat(m_Description.format), VK_COLORSPACE_SRGB_NONLINEAR_KHR })
+			.set_desired_format({ toVkFormat(m_Description.format), VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 			.set_desired_present_mode(m_EnableVsync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
 			.set_desired_extent(m_Description.width, m_Description.height)
 			.add_image_usage_flags(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
@@ -55,39 +55,29 @@ namespace rhi::vulkan {
 		m_Swapchain = vkbSwapchain->swapchain;
 
 		setDebugName(device->getDevice(), VK_OBJECT_TYPE_SWAPCHAIN_KHR, m_Swapchain, m_DebugName.c_str());
+		createImages(vkbSwapchain->get_images().value().data(), vkbSwapchain->image_count);
 
+		return true;
+	}
+
+	bool VulkanSwapchain::createImages(VkImage* images, uint32_t size) {
 		TextureDescription textureDesc{};
 		textureDesc.width = m_Description.width;
 		textureDesc.height = m_Description.height;
-		textureDesc.format = Format::B8G8R8A8_UNORM;
+		textureDesc.format = m_Description.format;
 		textureDesc.usage = TextureUsageFlags::RenderTarget;
 
-		std::vector<VkImage> vkImages = vkbSwapchain->get_images().value();
-		m_SwapchainImages.resize(vkImages.size());
-		for (size_t i = 0; i < vkImages.size(); ++i) {
+		m_SwapchainImages.resize(size);
+		for (size_t i = 0; i < size; ++i) {
 			std::string name = fmt::format("{} texture {}", m_DebugName, i);
-			SE::Scoped<VulkanTexture> image = SE::CreateScoped<VulkanTexture>(device, textureDesc, name);
-			image->create(vkImages[i]);
+			SE::Scoped<VulkanTexture> image = SE::CreateScoped<VulkanTexture>((VulkanDevice*)m_Device, textureDesc, name);
+			if (!image->create(images[i]))
+				return false;
 			m_SwapchainImages[i] = std::move(image);
 		}
 
 		return true;
 	}
-
-	//bool VulkanSwapchain::createTextures() {
-	//	for (size_t i = 0; i < m_SwapchainImages.size(); i++) {
-	//		TextureDescription desc{};
-	//		desc.width = m_Description.width;
-	//		desc.height = m_Description.height;
-	//		desc.format = Format::BGRA8_UNORM;
-	//		desc.usage = TextureUsageFlags::RenderTarget;
-
-	//		auto texture = new VulkanTexture(m_Device, desc, m_SwapchainImages[i]);
-	//		m_SwapchainImages.push_back(texture);
-	//	}
-
-	//	return true;
-	//}
 
 	bool VulkanSwapchain::createSemaphores() {
 		m_AcquireSemaphores.clear();
@@ -125,7 +115,6 @@ namespace rhi::vulkan {
 				recreateSwapchain();
 			}
 		}
-		m_frameSemaphoreIndex = (m_frameSemaphoreIndex + 1) % m_AcquireSemaphores.size();
 	}
 
 	bool VulkanSwapchain::resize(uint32_t width, uint32_t height) {
@@ -140,7 +129,26 @@ namespace rhi::vulkan {
 	}
 
 	bool VulkanSwapchain::recreateSwapchain() {
-		cleanupSwapchain();
+		vkDeviceWaitIdle((VkDevice)m_Device->getHandle());
+		for (auto& image : m_SwapchainImages)
+		{
+			image.reset();
+		}
+		m_SwapchainImages.clear();
+
+		VulkanDevice* device = (VulkanDevice*)m_Device;
+		//device->enqueueDeletion(m_Swapchain);
+		//device->enqueueDeletion(m_Surface);
+
+		for (auto semaphore : m_AcquireSemaphores)
+		{
+			device->enqueueDeletion(semaphore);
+		}
+
+		for (auto semaphore : m_PresentSemaphores)
+		{
+			device->enqueueDeletion(semaphore);
+		}
 		return createSwapchain() && createSemaphores();
 	}
 
@@ -169,6 +177,7 @@ namespace rhi::vulkan {
 
 	bool VulkanSwapchain::acquireNextImage()
 	{
+		m_frameSemaphoreIndex = (m_frameSemaphoreIndex + 1) % m_AcquireSemaphores.size();
 		VkSemaphore signalSemaphore = getAcquireSemaphore();
 
 		VkResult result = vkAcquireNextImageKHR((VkDevice)m_Device->getHandle(), m_Swapchain, UINT64_MAX, signalSemaphore, VK_NULL_HANDLE, &m_CurrentSwapchainImage);

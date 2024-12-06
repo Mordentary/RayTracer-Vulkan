@@ -46,6 +46,7 @@ target_link_libraries(SingularityEngine
         SDL2
         SDL2main
         imgui
+        dxcompiler
 )
 
 # Resource copying
@@ -55,14 +56,16 @@ add_custom_target(CopyEngineResources ALL
 
 # Copy commands
 add_custom_command(TARGET CopyEngineResources POST_BUILD
-    # Copy engine DLL
+  # Copy the SingularityEngine executable to its output directory
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:SingularityEngine>"
         "$<TARGET_FILE_DIR:SingularityEngine>"
-    # Copy dependency DLLs
+
+    # Copy all runtime DLL dependencies automatically discovered by CMake
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         $<TARGET_RUNTIME_DLLS:SingularityEngine>
         "$<TARGET_FILE_DIR:SingularityEngine>"
+
     # Create and copy shaders
     COMMAND ${CMAKE_COMMAND} -E make_directory 
         "$<TARGET_FILE_DIR:SingularityEngine>/shaders"
@@ -76,7 +79,6 @@ add_custom_command(TARGET CopyEngineResources POST_BUILD
     COMMENT "Copying all engine resources to output directory"
     COMMAND_EXPAND_LISTS
 )
-
 # Dependencies
 add_dependencies(SingularityEngine vma)
 add_dependencies(CopyEngineResources SingularityEngine Shaders)

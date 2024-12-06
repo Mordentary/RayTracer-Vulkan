@@ -29,7 +29,7 @@ namespace SE
 			VkDescriptorType type;
 			float ratio;
 		};
-		void init(VkDevice device, uint32_t initialSets, std::span<PoolSizeRatio> poolRatios);
+		void create(VkDevice device, uint32_t initialSets, std::span<PoolSizeRatio> poolRatios);
 		void clearPools(VkDevice device);
 		void destroyPools(VkDevice device);
 		VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout, void* pNext = nullptr);

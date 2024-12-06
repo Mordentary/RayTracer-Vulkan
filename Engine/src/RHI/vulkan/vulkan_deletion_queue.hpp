@@ -1,7 +1,7 @@
 #pragma once
 
-#include <queue>
 #include "vulkan_core.hpp"
+#include <queue>
 
 namespace rhi::vulkan
 {
@@ -34,9 +34,27 @@ namespace rhi::vulkan
 		std::queue<std::pair<VkSwapchainKHR, uint64_t>> m_SwapchainQueue;
 		std::queue<std::pair<VkSurfaceKHR, uint64_t>> m_SurfaceQueue;
 		std::queue<std::pair<VkCommandPool, uint64_t>> m_CommandPoolQueue;
-
-		//TODO:
 		std::queue<std::pair<uint32_t, uint64_t>> m_ResourceDescriptorQueue;
 		std::queue<std::pair<uint32_t, uint64_t>> m_SamplerDescriptorQueue;
 	};
+
+	//General
+	template<typename T>
+	void VulkanDeletionQueue::enqueue(T object, uint64_t frameID)
+	{
+		SE_ASSERT(false, "Unsupported type!");
+	}
+	// specialization
+
+	template<> void VulkanDeletionQueue::enqueue<VkImage>(VkImage object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VkBuffer>(VkBuffer object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VmaAllocation>(VmaAllocation object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VkImageView>(VkImageView object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VkSampler>(VkSampler object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VkPipeline>(VkPipeline object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VkShaderModule>(VkShaderModule object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VkSemaphore>(VkSemaphore object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VkSwapchainKHR>(VkSwapchainKHR object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VkSurfaceKHR>(VkSurfaceKHR object, uint64_t frameID);
+	template<> void VulkanDeletionQueue::enqueue<VkCommandPool>(VkCommandPool object, uint64_t frameID);
 }

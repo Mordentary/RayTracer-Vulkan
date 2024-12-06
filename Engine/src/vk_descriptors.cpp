@@ -91,7 +91,7 @@ namespace SE
 		vkUpdateDescriptorSets(device, (uint32_t)m_Writes.size(), m_Writes.data(), 0, nullptr);
 	}
 
-	void DescriptorAllocator::init(VkDevice device, uint32_t initialSets, std::span<PoolSizeRatio> poolRatios)
+	void DescriptorAllocator::create(VkDevice device, uint32_t initialSets, std::span<PoolSizeRatio> poolRatios)
 	{
 		m_Ratios.clear();
 

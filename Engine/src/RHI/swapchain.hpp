@@ -1,16 +1,10 @@
 #pragma once
 #include "resource.hpp"
-#include "texture.hpp"
+#include "types.hpp"
+#include <cstdint>
 
 namespace rhi {
-	struct SwapchainDescription {
-		void* windowHandle = nullptr;
-		uint32_t width = 0;
-		uint32_t height = 0;
-		uint32_t bufferCount = 3;
-		Format format = Format::Unknown;
-		bool vsync = true;
-	};
+	class Texture;
 
 	class Swapchain : public Resource {
 	public:

@@ -16,7 +16,7 @@ namespace SE {
 		}
 	}
 
-	void Logger::init(const std::filesystem::path& logFile) {
+	void Logger::create(const std::filesystem::path& logFile) {
 		if (!logFile.empty()) {
 			m_FileStream.open(logFile, std::ios::out | std::ios::app);
 		}

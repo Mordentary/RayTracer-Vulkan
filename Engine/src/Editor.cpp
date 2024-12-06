@@ -1,10 +1,14 @@
 // editor.cpp
 #include "Editor.hpp"
-#include "vk_engine.h"
+#include "core/engine.hpp"
+#include "RHI/vulkan/vulkan_device.hpp"
+#include "RHI/vulkan/vulkan_swapchain.hpp"
 #include "vk_initializers.h"
+
+#define IMGUI_IMPL_VULKAN_USE_VOLK
 #include <imgui_impl_sdl2.h>
 #include <imgui_impl_vulkan.h>
-#include <imgui_internal.h>
+#include <RHI\vulkan\vulkan_texture.hpp>
 
 namespace SE {
 	Editor::Editor(Engine* engine) : m_Engine(engine)
@@ -15,7 +19,7 @@ namespace SE {
 		shutdown();
 	}
 
-	void Editor::init() {
+	void Editor::create() {
 		createDescriptorPool();
 
 		// Initialize ImGui
@@ -29,15 +33,18 @@ namespace SE {
 		io.ConfigWindowsMoveFromTitleBarOnly = false;
 
 		initImGuiStyle();
-
 		// Initialize platform/renderer backends
-		ImGui_ImplSDL2_InitForVulkan(m_Engine->getWindow());
-		VkFormat swapchainFormat = m_Engine->getSwapchainFormat();
+		ImGui_ImplSDL2_InitForVulkan((SDL_Window*)m_Engine->getWindow().getNativeWindow());
+
+		rhi::vulkan::VulkanDevice* device = (rhi::vulkan::VulkanDevice*)m_Engine->getRenderer().getDevice();
+		rhi::vulkan::VulkanSwapchain* swapchain = (rhi::vulkan::VulkanSwapchain*)m_Engine->getRenderer().getSwapchain();
+
+		const auto& swapchainDesc = swapchain->getDescription();
 		ImGui_ImplVulkan_InitInfo init_info{};
-		init_info.Instance = m_Engine->getVkInstance();
-		init_info.PhysicalDevice = m_Engine->getPhysicalDevice();
-		init_info.Device = m_Engine->getDevice();
-		init_info.Queue = m_Engine->getGraphicsQueue();
+		init_info.Instance = device->getInstance();
+		init_info.PhysicalDevice = device->getPhysicalDevice();
+		init_info.Device = device->getDevice();
+		init_info.Queue = device->getGraphicsQueue();
 		init_info.DescriptorPool = m_DescriptorPool;
 		init_info.MinImageCount = 3;
 		init_info.ImageCount = 3;
@@ -46,15 +53,20 @@ namespace SE {
 
 		init_info.PipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
 		init_info.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-		init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_Engine->getSwapchainFormat();
+
+		//TODO: Not a good solution. because VULKAN SPECIFIC
+		m_SwapchainFormat = rhi::vulkan::toVkFormat(swapchainDesc.format);
+		init_info.PipelineRenderingCreateInfo.pColorAttachmentFormats = &m_SwapchainFormat;
 
 		ImGui_ImplVulkan_Init(&init_info);
 		ImGui_ImplVulkan_CreateFontsTexture();
 
-		createViewportResources();
+		//createViewportResources();
 	}
 
 	void Editor::createDescriptorPool() {
+		//TODO: REWRITE THIS
+		rhi::vulkan::VulkanDevice* device = (rhi::vulkan::VulkanDevice*)m_Engine->getRenderer().getDevice();
 		VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
@@ -76,7 +88,7 @@ namespace SE {
 		pool_info.poolSizeCount = std::size(pool_sizes);
 		pool_info.pPoolSizes = pool_sizes;
 
-		VK_CHECK(vkCreateDescriptorPool(m_Engine->getDevice(), &pool_info, nullptr, &m_DescriptorPool));
+		VK_CHECK(vkCreateDescriptorPool(device->getDevice(), &pool_info, nullptr, &m_DescriptorPool));
 	}
 
 	void Editor::initImGuiStyle() {
@@ -94,20 +106,40 @@ namespace SE {
 		}
 	}
 
-	void Editor::createViewportResources() {
-		updateViewportImage(m_Engine->getDrawImageView());
+	void Editor::createViewportResources()
+	{
+		rhi::vulkan::VulkanDevice* device = (rhi::vulkan::VulkanDevice*)m_Engine->getRenderer().getDevice();
+		VkSamplerCreateInfo samplerInfo{};
+		samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+		samplerInfo.magFilter = VK_FILTER_NEAREST;
+		samplerInfo.minFilter = VK_FILTER_NEAREST;
+		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+		samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		samplerInfo.mipLodBias = 0.0f;
+		samplerInfo.anisotropyEnable = VK_FALSE;
+		samplerInfo.maxAnisotropy = 1.0f;
+		samplerInfo.compareEnable = VK_FALSE;
+		samplerInfo.compareOp = VK_COMPARE_OP_NEVER;
+		samplerInfo.minLod = 0.0f;
+		samplerInfo.maxLod = 0.0f;
+		samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+		samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+		VK_CHECK(vkCreateSampler(device->getDevice(), &samplerInfo, nullptr, &m_ViewportSampler));
 	}
 
 	void Editor::updateViewportImage(VkImageView newImageView) {
-		if (m_ViewportImageDescriptor != VK_NULL_HANDLE) {
-			ImGui_ImplVulkan_RemoveTexture(m_ViewportImageDescriptor);
-		}
+		//if (m_ViewportImageDescriptor != VK_NULL_HANDLE) {
+		//	ImGui_ImplVulkan_RemoveTexture(m_ViewportImageDescriptor);
+		//}
 
-		m_ViewportImageDescriptor = ImGui_ImplVulkan_AddTexture(
-			m_Engine->getDefaultEngineData().samplerNearest,
-			newImageView,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-		);
+		//m_ViewportImageDescriptor = ImGui_ImplVulkan_AddTexture(
+		//	m_ViewportSampler,
+		//	newImageView,
+		//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		//);
 	}
 
 	void Editor::handleViewportResize(const ImVec2& newSize) {
@@ -115,9 +147,9 @@ namespace SE {
 			return;
 		}
 
-		m_Viewport.availableSpace = glm::vec2(newSize.x, newSize.y);
-		m_Engine->setResizeRequest(true);
-		updateViewportImage(m_Engine->getDrawImageView());
+		m_Viewport.renderTargetSize = glm::vec2(newSize.x, newSize.y);
+		ViewportResizeSignal(newSize.x, newSize.y);
+		updateViewportImage(((rhi::vulkan::VulkanTexture*)m_Engine->getRenderer().getRenderTarget())->getRenderView(0, 0));
 	}
 
 	bool Editor::checkViewportResize(const ImVec2& currentSize) {
@@ -126,8 +158,8 @@ namespace SE {
 			return false;
 		}
 
-		float widthDiff = std::abs(m_Viewport.availableSpace.x - currentSize.x);
-		float heightDiff = std::abs(m_Viewport.availableSpace.y - currentSize.y);
+		float widthDiff = std::abs(m_Viewport.renderTargetSize.x - currentSize.x);
+		float heightDiff = std::abs(m_Viewport.renderTargetSize.y - currentSize.y);
 
 		return (widthDiff > m_Viewport.resizeThreshold ||
 			heightDiff > m_Viewport.resizeThreshold);
@@ -175,39 +207,39 @@ namespace SE {
 	void Editor::drawViewport() {
 		if (!m_ShowViewport) return;
 
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
-		if (ImGui::Begin("Viewport", &m_ShowViewport,
-			ImGuiWindowFlags_NoTitleBar |
-			ImGuiWindowFlags_NoDecoration |
-			ImGuiWindowFlags_NoScrollbar |
-			ImGuiWindowFlags_NoScrollWithMouse)) {
-			// Update viewport state
-			ImVec2 contentScreenPos = ImGui::GetCursorScreenPos();
-			m_Viewport.position = glm::vec2(contentScreenPos.x, contentScreenPos.y);
+		//ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+		//if (ImGui::Begin("Viewport", &m_ShowViewport,
+		//	ImGuiWindowFlags_NoTitleBar |
+		//	ImGuiWindowFlags_NoDecoration |
+		//	ImGuiWindowFlags_NoScrollbar |
+		//	ImGuiWindowFlags_NoScrollWithMouse)) {
+		//	// Update viewport state
+		//	ImVec2 contentScreenPos = ImGui::GetCursorScreenPos();
+		//	m_Viewport.position = glm::vec2(contentScreenPos.x, contentScreenPos.y);
+		//	m_Viewport.isHovered = ImGui::IsWindowHovered();
 
-			ImVec2 viewportSize = ImGui::GetContentRegionAvail();
-			m_Viewport.isHovered = ImGui::IsWindowHovered();
-			ImVec2 windowPos = ImGui::GetWindowPos();
-			ImVec2 windowSize = ImGui::GetWindowSize();
-			m_Viewport.viewportSize = glm::vec2(static_cast<float>(windowSize.x), static_cast<float>(windowSize.y));
-			// Calculate the center position
-			glm::vec2 windowCenter;
-			windowCenter.x = (viewportSize.x * 0.5f) + windowPos.x;
-			windowCenter.y = (viewportSize.y * 0.5f) + windowPos.y;
+		//	ImVec2 windowPos = ImGui::GetWindowPos();
+		//	ImVec2 windowSize = ImGui::GetWindowSize();
+		//	m_Viewport.viewportSize = glm::vec2(static_cast<float>(windowSize.x), static_cast<float>(windowSize.y));
 
-			m_Viewport.viewportCenter = windowCenter;
+		//	// Calculate the center position
+		//	glm::vec2 windowCenter;
+		//	windowCenter.x = (windowSize.x * 0.5f) + windowPos.x;
+		//	windowCenter.y = (windowSize.y * 0.5f) + windowPos.y;
+		//	m_Viewport.viewportCenter = windowCenter;
 
-			handleViewportResize(viewportSize);
+		//	ImVec2 renderTargetSize = ImGui::GetContentRegionAvail();
+		//	handleViewportResize(renderTargetSize);
 
-			ImGui::Image(
-				(ImTextureID)(uint64_t)m_ViewportImageDescriptor,
-				viewportSize,
-				ImVec2(0, 0),
-				ImVec2(1, 1)
-			);
-		}
-		ImGui::End();
-		ImGui::PopStyleVar();
+		//	//ImGui::Image(
+		//	//	(ImTextureID)(uint64_t)m_ViewportImageDescriptor,
+		//	//	renderTargetSize,
+		//	//	ImVec2(0, 0),
+		//	//	ImVec2(1, 1)
+		//	//);
+		//}
+		//ImGui::End();
+		//ImGui::PopStyleVar();
 	}
 
 	void Editor::drawDebugWindows()
@@ -249,20 +281,27 @@ namespace SE {
 		}
 	}
 
-	void Editor::render(VkCommandBuffer cmd, VkImageView targetImageView) {
-		VkFormat swapchainFormat = m_Engine->getSwapchainFormat();
+	void Editor::render(rhi::CommandList* cmd) {
+		//VkFormat swapchainFormat = m_Engine->getSwapchainFormat();
 
-		VkRenderingAttachmentInfo colorAttachment = vkInit::attachmentInfo(
-			targetImageView,
-			nullptr,
-			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-		);
+		//VkRenderingAttachmentInfo colorAttachment = vkInit::attachmentInfo(
+		//	targetImageView,
+		//	nullptr,
+		//	VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+		//);
 
-		VkRenderingInfo renderInfo = vkInit::renderingInfo(m_Engine->getSwapchainExtent(), &colorAttachment, nullptr);
+		//VkRenderingInfo renderInfo = vkInit::renderingInfo(m_Engine->getSwapchainExtent(), &colorAttachment, nullptr);
 
-		vkCmdBeginRendering(cmd, &renderInfo);
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmd);
-		vkCmdEndRendering(cmd);
+		//vkCmdBeginRendering(cmd, &renderInfo);
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), (VkCommandBuffer)cmd->getHandle());
+		//vkCmdEndRendering(cmd);
+	}
+
+	void Editor::update()
+	{
+		beginFrame();
+
+		endFrame();
 	}
 
 	void Editor::handleEvent(const SDL_Event& event) {
@@ -277,7 +316,8 @@ namespace SE {
 	}
 
 	void Editor::shutdown() {
-		vkDeviceWaitIdle(m_Engine->getDevice());
+		rhi::vulkan::VulkanDevice* device = (rhi::vulkan::VulkanDevice*)m_Engine->getRenderer().getDevice();
+		vkDeviceWaitIdle(device->getDevice());
 
 		destroyViewportResources();
 
@@ -289,9 +329,8 @@ namespace SE {
 
 		// Clean up Vulkan descriptor pool
 		if (m_DescriptorPool != VK_NULL_HANDLE) {
-			vkDestroyDescriptorPool(m_Engine->getDevice(), m_DescriptorPool, nullptr);
+			vkDestroyDescriptorPool(device->getDevice(), m_DescriptorPool, nullptr);
 			m_DescriptorPool = VK_NULL_HANDLE;
 		}
 	}
-	// namespace S
 }

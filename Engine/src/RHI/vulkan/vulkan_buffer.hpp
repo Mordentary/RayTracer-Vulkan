@@ -19,6 +19,7 @@ namespace rhi::vulkan {
 
 		// Resource interface
 		void* getHandle() const override { return m_Buffer; }
+		bool isBuffer() const override { return true; }
 
 		// Vulkan specific
 		VkBuffer getVkBuffer() const { return m_Buffer; }

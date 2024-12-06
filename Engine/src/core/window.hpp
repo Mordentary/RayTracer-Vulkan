@@ -25,7 +25,7 @@ namespace SE {
 		sigslot::signal<uint32_t, uint32_t> WindowResizeSignal;
 
 	private:
-		void init(const std::string& title, uint32_t width, uint32_t height);
+		void create(const std::string& title, uint32_t width, uint32_t height);
 		void shutdown();
 
 		SDL_Window* m_Window;

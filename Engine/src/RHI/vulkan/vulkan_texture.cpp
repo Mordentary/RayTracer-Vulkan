@@ -36,7 +36,7 @@ namespace rhi::vulkan
 	bool VulkanTexture::create()
 	{
 		VkDevice device = ((VulkanDevice*)m_Device)->getDevice();
-		VmaAllocator allocator = ((VulkanDevice*)m_Device)->getAllocator();
+		VmaAllocator allocator = ((VulkanDevice*)m_Device)->getVmaAllocator();
 
 		VkImageCreateInfo createInfo = toImageCreateInfo(m_Description);
 		VmaAllocationCreateInfo allocationInfo = {};
@@ -50,6 +50,8 @@ namespace rhi::vulkan
 		{
 			vmaSetAllocationName(allocator, m_allocation, m_DebugName.c_str());
 		}
+
+		m_IsSwapchainImage = false;
 
 		((VulkanDevice*)m_Device)->enqueueDefaultLayoutTransition(this);
 
@@ -89,8 +91,8 @@ namespace rhi::vulkan
 			VkImageViewCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 			createInfo.image = m_Image;
 			createInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-			createInfo.format = toVulkanFormat(m_Description.format, true);
-			createInfo.subresourceRange.aspectMask = getAspectMask(m_Description.format);
+			createInfo.format = toVkFormat(m_Description.format);
+			createInfo.subresourceRange.aspectMask = getVkAspectMask(m_Description.format);
 			createInfo.subresourceRange.baseMipLevel = mipSlice;
 			createInfo.subresourceRange.baseArrayLayer = arraySlice;
 			createInfo.subresourceRange.layerCount = 1;

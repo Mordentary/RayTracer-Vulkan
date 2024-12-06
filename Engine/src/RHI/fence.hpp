@@ -1,3 +1,4 @@
+#pragma once
 #include "resource.hpp"
 namespace rhi {
 	class Fence : public Resource {

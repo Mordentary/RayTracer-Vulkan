@@ -1,44 +1,46 @@
 // editor.h
 #pragma once
-#include <volk/volk.h>
+
+#include"volk/volk.h"
 #include <SDL.h>
 #include <imgui.h>
 #include <glm/glm.hpp>
-
+#include"RHI/command_list.hpp"
+#include <sigslot/signal.hpp>
 namespace SE {
 	class Engine;
 
 	class Editor {
 	public:
 		struct ViewportState {
-			glm::vec2 availableSpace{ 1280.0f, 720.0f };
+			glm::vec2 renderTargetSize{ 1280.0f, 720.0f };
 			glm::vec2 position{ 0.0f, 0.0f };
 			glm::vec2 viewportCenter{};
 			glm::vec2 viewportSize{};
 			float resizeThreshold = 1.0f;
 			bool isHovered = false;
-			bool needsResize = false;
 		};
 	public:
 		explicit Editor(Engine* engine);
 		~Editor();
 
 		// Core functions
-		void init();
+		void create();
 		void beginFrame();
 		void endFrame();
-		void render(VkCommandBuffer cmd, VkImageView targetImageView);
+		void render(rhi::CommandList* cmd);
+		void update();
 		void handleEvent(const SDL_Event& event);
+		sigslot::signal<uint32_t, uint32_t> ViewportResizeSignal;
 
 		// Getters
 		bool isViewportHovered() const { return m_Viewport.isHovered; }
-		const glm::vec2& getViewportSize() const { return m_Viewport.availableSpace; }
+		const glm::vec2& getViewportSize() const { return m_Viewport.renderTargetSize; }
 		const ViewportState* getViewportState() { return &m_Viewport; }
 		void updateViewportImage(VkImageView newImageView);
 
 	private:
 		void shutdown();
-		// Viewport management
 
 		// Initialize helpers
 		void createDescriptorPool();
@@ -64,6 +66,8 @@ namespace SE {
 		// Vulkan resources
 		VkDescriptorPool m_DescriptorPool = VK_NULL_HANDLE;
 		VkDescriptorSet m_ViewportImageDescriptor = VK_NULL_HANDLE;
+		VkSampler m_ViewportSampler = VK_NULL_HANDLE;
+		VkFormat m_SwapchainFormat = VK_FORMAT_UNDEFINED;
 
 		// Window state
 		bool m_ShowDockspace = true;

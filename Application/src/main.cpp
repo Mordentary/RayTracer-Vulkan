@@ -6,7 +6,7 @@ int main(int argc, char* argv[])
 {
 	SE::Engine& engine = SE::Engine::getInstance();
 
-	engine.init(WINDOW_WIDTH, WINDOW_HEIGHT);
+	engine.create(WINDOW_WIDTH, WINDOW_HEIGHT);
 	engine.run();
 	engine.shutdown();
 	return 0;

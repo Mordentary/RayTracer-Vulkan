@@ -28,6 +28,7 @@ namespace rhi::vulkan
 		bool createSurface();
 		bool createSwapchain();
 		bool createSemaphores();
+		bool createImages(VkImage* images, uint32_t size);
 		bool recreateSwapchain();
 		void cleanupSwapchain();
 	private:
@@ -38,7 +39,7 @@ namespace rhi::vulkan
 		uint32_t m_CurrentSwapchainImage = 0;
 		std::vector<SE::Scoped<Texture>> m_SwapchainImages;
 
-		int32_t m_frameSemaphoreIndex = -1;
+		int32_t m_frameSemaphoreIndex = uint32_t(-1);
 		std::vector<VkSemaphore> m_AcquireSemaphores;
 		std::vector<VkSemaphore> m_PresentSemaphores;
 	};

@@ -22,11 +22,13 @@ namespace SE
 			static Engine instance;
 			return instance;
 		}
-		SINGULARITY_API void init(uint32_t width, uint32_t height);
+		SINGULARITY_API void create(uint32_t width, uint32_t height);
 		SINGULARITY_API void run();
 		SINGULARITY_API void shutdown();
 
 		Window& getWindow() const { return *m_Window; }
+		Editor& getEditor() const { return *m_Editor; }
+		Renderer& getRenderer() const { return *m_Renderer; }
 	private:
 		Engine() = default;
 		~Engine() = default;
@@ -39,12 +41,13 @@ namespace SE
 	private:
 		Scoped<Renderer> m_Renderer;
 
-		std::unordered_map<std::string, Shared<LoadedGLTF>> m_LoadedNodes;
-		Shared<Camera> m_Camera;
 		Scoped<Editor> m_Editor;
 		Scoped<Window> m_Window;
 		bool m_StopRendering = false;
 
+		//World
+		std::unordered_map<std::string, Shared<LoadedGLTF>> m_LoadedNodes;
+		Shared<Camera> m_Camera;
 		std::string m_AssetPath;
 		std::string m_ShaderPath;
 	private:

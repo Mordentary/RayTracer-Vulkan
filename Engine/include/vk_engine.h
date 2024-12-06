@@ -64,7 +64,8 @@ namespace SE
 			, indexBuffer(inIndexBuffer)
 			, material(inMaterial)
 			, transform(inTransform)
-			, vertexBufferAddress(inVertexBufferAddress) {}
+			, vertexBufferAddress(inVertexBufferAddress) {
+		}
 
 		uint32_t indexCount;
 		uint32_t firstIndex;
@@ -365,7 +366,7 @@ namespace SE
 		Engine& operator=(Engine&&) = delete;
 		Engine();
 		~Engine();
-		void init();
+		void create();
 
 		bool m_IsInitialized = false;
 		bool m_ResizeRequested = false;

@@ -15,7 +15,7 @@ target_sources(vkbootstrap PRIVATE
 )
 target_include_directories(vkbootstrap PUBLIC vkbootstrap)
 target_link_libraries(vkbootstrap PUBLIC 
-    Vulkan::Vulkan 
+   volk 
     $<$<BOOL:UNIX>:${CMAKE_DL_LIBS}>
 )
 set_property(TARGET vkbootstrap PROPERTY CXX_STANDARD 20)
@@ -42,7 +42,7 @@ add_subdirectory(sigslot EXCLUDE_FROM_ALL)
 # VMA
 add_library(vma STATIC vma/vk_mem_alloc.cpp)
 target_include_directories(vma PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/vma)
-target_link_libraries(vma PRIVATE Vulkan::Vulkan)
+target_link_libraries(vma PRIVATE volk)
 
 # STB Image
 add_library(stb_image STATIC stb_image/stb_image.cpp)
@@ -50,6 +50,14 @@ target_include_directories(stb_image
     PUBLIC stb_image
     INTERFACE stb_image
 )
+
+add_library(dxcompiler SHARED IMPORTED)
+set_target_properties(dxcompiler PROPERTIES
+    IMPORTED_IMPLIB "${CMAKE_CURRENT_SOURCE_DIR}/dxc/lib/x64/dxcompiler.lib"
+    IMPORTED_LOCATION "${CMAKE_CURRENT_SOURCE_DIR}/dxc/bin/x64/dxcompiler.dll"
+    INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_CURRENT_SOURCE_DIR}/dxc/inc"
+)
+
 
 # Dear ImGui
 add_library(imgui STATIC)
@@ -63,8 +71,8 @@ target_sources(imgui PRIVATE
     imgui/imgui_impl_sdl2.cpp
 )
 target_include_directories(imgui PUBLIC imgui)
-target_link_libraries(imgui PUBLIC Vulkan::Vulkan SDL2::SDL2)
-
+target_link_libraries(imgui PUBLIC SDL2::SDL2 volk)
+target_compile_definitions(imgui PUBLIC IMGUI_IMPL_VULKAN_USE_VOLK)
 # Additional libraries
 add_subdirectory(fastgltf)
 

@@ -5,46 +5,11 @@
 
 namespace rhi::vulkan
 {
-	inline void validateSamplerDescription(const SamplerDescription& desc) {
+	void validateSamplerDescription(const SamplerDescription& desc) {
 		SE_ASSERT(desc.maxAnisotropy >= 1.0f && desc.maxAnisotropy <= MaxSamplerAnisotropy,
 			"Invalid anisotropy value: {}", desc.maxAnisotropy);
 		SE_ASSERT(desc.minLod <= desc.maxLod,
 			"Invalid LOD range: min {} > max {}", desc.minLod, desc.maxLod);
-	}
-
-	VkBufferUsageFlags translateBufferUsage(BufferUsageFlags usage) {
-		VkBufferUsageFlags result = 0;
-
-		if ((usage & BufferUsageFlags::VertexBuffer) != BufferUsageFlags::None) {
-			result |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-		}
-
-		if ((usage & BufferUsageFlags::IndexBuffer) != BufferUsageFlags::None) {
-			result |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-		}
-
-		if ((usage & BufferUsageFlags::ConstantBuffer) != BufferUsageFlags::None) {
-			result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-		}
-
-		if ((usage & BufferUsageFlags::UnorderedAccess) != BufferUsageFlags::None) {
-			result |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-		}
-
-		if ((usage & BufferUsageFlags::TransferSrc) != BufferUsageFlags::None) {
-			result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-		}
-
-		if ((usage & BufferUsageFlags::TransferDst) != BufferUsageFlags::None) {
-			result |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-		}
-
-		if ((usage & BufferUsageFlags::Storage) != BufferUsageFlags::None) {
-			result |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-		}
-
-		result |= VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
-		return result;
 	}
 
 	VmaMemoryUsage translateMemoryType(MemoryType type) {
@@ -62,7 +27,7 @@ namespace rhi::vulkan
 			return VMA_MEMORY_USAGE_UNKNOWN;
 		}
 	}
-	VkFormat toVulkanFormat(Format format, bool sRGB) {
+	VkFormat toVkFormat(Format format, bool sRGB) {
 		switch (format) {
 		case Format::R8G8B8A8_UNORM:
 			return sRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
@@ -260,7 +225,7 @@ namespace rhi::vulkan
 		}
 	}
 
-	VkImageAspectFlags getAspectMask(Format format) {
+	VkImageAspectFlags getVkAspectMask(Format format) {
 		switch (format) {
 			// Depth-only formats
 		case Format::D16_UNORM:
@@ -381,7 +346,7 @@ namespace rhi::vulkan
 		}
 	}
 
-	VkImageLayout toVulkanLayout(TextureLayout layout) {
+	VkImageLayout toVkLayout(TextureLayout layout) {
 		switch (layout) {
 		case TextureLayout::Undefined:
 			return VK_IMAGE_LAYOUT_UNDEFINED;
@@ -391,7 +356,7 @@ namespace rhi::vulkan
 			return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 		case TextureLayout::ShaderResource:
 			return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-		case TextureLayout::UnorderedAccess:
+		case TextureLayout::ShaderStorage:
 			return VK_IMAGE_LAYOUT_GENERAL;
 		case TextureLayout::TransferSrc:
 			return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
@@ -404,50 +369,189 @@ namespace rhi::vulkan
 		}
 	}
 
-	VkPipelineStageFlags2 getPipelineStageFlags(ResourceState state) {
-		switch (state) {
-		case ResourceState::Common:
-			return VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
-		case ResourceState::VertexBuffer:
-			return VK_PIPELINE_STAGE_2_VERTEX_ATTRIBUTE_INPUT_BIT;
-		case ResourceState::IndexBuffer:
-			return VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT;
-		case ResourceState::ConstantBuffer:
-			return VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT |
-				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
-		case ResourceState::UnorderedAccess:
-			return VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
-		case ResourceState::TransferSrc:
-		case ResourceState::CopyDest:
-			return VK_PIPELINE_STAGE_2_COPY_BIT;
-		case ResourceState::Present:
-			return VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+	VkPipelineStageFlags2 getVkStageMask(ResourceAccessFlags flags) {
+		VkPipelineStageFlags2 stage = VK_PIPELINE_STAGE_2_NONE;
+
+		if (anySet(flags, ResourceAccessFlags::Present))
+			stage |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::RenderTarget))
+			stage |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::DepthStencil | ResourceAccessFlags::DepthStencilRead))
+			stage |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::VertexShaderRead | ResourceAccessFlags::VertexShaderStorage))
+			stage |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::PixelShaderRead | ResourceAccessFlags::PixelShaderStorage))
+			stage |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::ComputeShaderRead | ResourceAccessFlags::ComputeShaderStorage))
+			stage |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::IndexBuffer))
+			stage |= VK_PIPELINE_STAGE_2_INDEX_INPUT_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::IndirectArgs))
+			stage |= VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::TransferSrc | ResourceAccessFlags::TransferDst))
+			stage |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::StorageClear))
+			stage |= VK_PIPELINE_STAGE_2_TRANSFER_BIT; // Clear operations typically use the transfer stage
+
+		if (anySet(flags, ResourceAccessFlags::ShadingRate))
+			stage |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
+
+		if (anySet(flags, ResourceAccessFlags::AccelerationStructureRead | ResourceAccessFlags::AccelerationStructureWrite))
+			stage |= VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
+
+		if (anySet(flags, ResourceAccessFlags::Discard))
+			stage |= VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+
+		if (stage == VK_PIPELINE_STAGE_2_NONE)
+		{
+			stage = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+			SE::LogWarn("VK_PIPELINE_STAGE IS EMPTY. Possible undefined resource access");
+		}
+
+		return stage;
+	}
+
+	VkCullModeFlags toVkCullMode(CullMode cullMode) {
+		switch (cullMode) {
+		case CullMode::None:
+			return VK_CULL_MODE_NONE;
+		case CullMode::Front:
+			return VK_CULL_MODE_FRONT_BIT;
+		case CullMode::Back:
+			return VK_CULL_MODE_BACK_BIT;
 		default:
-			SE::LogWarn("Unknown resource state: {}", static_cast<int>(state));
-			return VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
+			SE_ASSERT(false, "Unknown CullMode");
+			return VK_CULL_MODE_NONE; // Fallback to satisfy return requirement
 		}
 	}
 
-	VkAccessFlags2 getAccessFlags(ResourceState state) {
-		switch (state) {
-		case ResourceState::VertexBuffer:
-			return VK_ACCESS_2_VERTEX_ATTRIBUTE_READ_BIT;
-		case ResourceState::IndexBuffer:
-			return VK_ACCESS_2_INDEX_READ_BIT;
-		case ResourceState::ConstantBuffer:
-			return VK_ACCESS_2_UNIFORM_READ_BIT;
-		case ResourceState::UnorderedAccess:
-			return VK_ACCESS_2_SHADER_READ_BIT | VK_ACCESS_2_SHADER_WRITE_BIT;
-		case ResourceState::TransferSrc:
-			return VK_ACCESS_2_TRANSFER_READ_BIT;
-		case ResourceState::CopyDest:
-			return VK_ACCESS_2_TRANSFER_WRITE_BIT;
-		default:
-			return VK_ACCESS_2_MEMORY_READ_BIT | VK_ACCESS_2_MEMORY_WRITE_BIT;
-		}
+	VkPipelineRasterizationStateCreateInfo convertRasterizationState(const Rasterizer& rasterizerState) {
+		// Assert depthBiasClamp is non-negative
+		SE_ASSERT(rasterizerState.depthBiasClamp >= 0.0f, "Depth bias clamp must be non-negative");
+
+		VkPipelineRasterizationStateCreateInfo rasterState = {};
+		rasterState.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
+		rasterState.pNext = nullptr;
+		rasterState.flags = 0;
+		rasterState.depthClampEnable = rasterizerState.depthClip ? VK_FALSE : VK_TRUE;
+		rasterState.rasterizerDiscardEnable = VK_FALSE;
+		rasterState.polygonMode = rasterizerState.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+		rasterState.cullMode = toVkCullMode(rasterizerState.cullMode);
+		rasterState.frontFace = rasterizerState.frontCounterClockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
+		rasterState.depthBiasEnable = (rasterizerState.depthBias != 0.0f) || (rasterizerState.slopeScaledDepthBias != 0.0f);
+		rasterState.depthBiasConstantFactor = rasterizerState.depthBias;
+		rasterState.depthBiasClamp = rasterizerState.depthBiasClamp;
+		rasterState.depthBiasSlopeFactor = rasterizerState.slopeScaledDepthBias;
+		rasterState.lineWidth = 1.0f; // Default line width
+
+		// Assert if conservativeRaster is true; check if it's supported (pseudo-check)
+		SE_ASSERT(!rasterizerState.conservativeRaster, "Conservative rasterization is not supported in this configuration");
+
+		return rasterState;
 	}
 
-	inline VkSamplerCreateInfo samplerCreateInfo(const SamplerDescription& desc) {
+	VkImageLayout getVkImageLayout(ResourceAccessFlags flags) {
+		if (anySet(flags, ResourceAccessFlags::Discard))
+			return VK_IMAGE_LAYOUT_UNDEFINED;
+
+		if (anySet(flags, ResourceAccessFlags::Present))
+			return VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+		if (anySet(flags, ResourceAccessFlags::RenderTarget))
+			return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+		if (anySet(flags, ResourceAccessFlags::DepthStencil))
+			return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+		if (anySet(flags, ResourceAccessFlags::DepthStencilRead))
+			return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
+
+		if (anySet(flags, ResourceAccessFlags::ShaderRead))
+			return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+		if (anySet(flags, ResourceAccessFlags::ShaderStorage))
+			return VK_IMAGE_LAYOUT_GENERAL;
+
+		if (anySet(flags, ResourceAccessFlags::StorageClear))
+			return VK_IMAGE_LAYOUT_GENERAL;
+
+		if (anySet(flags, ResourceAccessFlags::TransferDst))
+			return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+		if (anySet(flags, ResourceAccessFlags::TransferSrc))
+			return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+
+		if (anySet(flags, ResourceAccessFlags::ShadingRate))
+			return VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+
+		SE::LogWarn("Unknown resource access flag for image layout: {}. General layout used as a fallback", static_cast<uint32_t>(flags));
+		return VK_IMAGE_LAYOUT_GENERAL;
+	}
+
+	VkAccessFlags2 getVkAccessMask(ResourceAccessFlags flags) {
+		VkAccessFlags2 access = VK_ACCESS_2_NONE;
+
+		if (anySet(flags, ResourceAccessFlags::Discard)) {
+			return access;
+		}
+
+		if (anySet(flags, ResourceAccessFlags::RenderTarget))
+			access |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::DepthStencil))
+			access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::DepthStencilRead))
+			access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::ShaderRead))
+			access |= VK_ACCESS_2_SHADER_SAMPLED_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::ShaderStorage))
+			access |= VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::StorageClear))
+			access |= VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::TransferDst))
+			access |= VK_ACCESS_2_TRANSFER_WRITE_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::TransferSrc))
+			access |= VK_ACCESS_2_TRANSFER_READ_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::ShadingRate))
+			access |= VK_ACCESS_2_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
+
+		if (anySet(flags, ResourceAccessFlags::IndexBuffer))
+			access |= VK_ACCESS_2_INDEX_READ_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::IndirectArgs))
+			access |= VK_ACCESS_2_INDIRECT_COMMAND_READ_BIT;
+
+		if (anySet(flags, ResourceAccessFlags::AccelerationStructureRead))
+			access |= VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR;
+
+		if (anySet(flags, ResourceAccessFlags::AccelerationStructureWrite))
+			access |= VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
+
+		if (access == VK_ACCESS_2_NONE && !anySet(flags, ResourceAccessFlags::Present))
+		{
+			SE::LogWarn("VK_ACCESS IS EMPTY. Possible undefined resource access");
+		}
+
+		return access;
+	}
+
+	VkSamplerCreateInfo samplerCreateInfo(const SamplerDescription& desc) {
 		validateSamplerDescription(desc);
 
 		VkSamplerCreateInfo info{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
@@ -456,9 +560,9 @@ namespace rhi::vulkan
 		info.mipmapMode = desc.filterMode == FilterMode::Point ?
 			VK_SAMPLER_MIPMAP_MODE_NEAREST : VK_SAMPLER_MIPMAP_MODE_LINEAR;
 
-		info.addressModeU = toVulkanAddressMode(desc.addressU);
-		info.addressModeV = toVulkanAddressMode(desc.addressV);
-		info.addressModeW = toVulkanAddressMode(desc.addressW);
+		info.addressModeU = toVkAddressMode(desc.addressU);
+		info.addressModeV = toVkAddressMode(desc.addressV);
+		info.addressModeW = toVkAddressMode(desc.addressW);
 		info.mipLodBias = desc.mipLodBias;
 		info.anisotropyEnable = desc.filterMode == FilterMode::Anisotropic;
 		info.maxAnisotropy = desc.maxAnisotropy;
@@ -483,7 +587,7 @@ namespace rhi::vulkan
 			break;
 		}
 
-		info.format = toVulkanFormat(desc.format);
+		info.format = toVkFormat(desc.format);
 		info.extent = { desc.width, desc.height, desc.depth };
 		info.mipLevels = desc.mipLevels;
 		info.arrayLayers = desc.arraySize;
@@ -491,18 +595,12 @@ namespace rhi::vulkan
 		info.tiling = VK_IMAGE_TILING_OPTIMAL;
 
 		info.usage = 0;
-		if ((desc.usage & TextureUsageFlags::RenderTarget) != TextureUsageFlags::None)
+		if (anySet(desc.usage, TextureUsageFlags::RenderTarget))
 			info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-		if ((desc.usage & TextureUsageFlags::DepthStencil) != TextureUsageFlags::None)
+		if (anySet(desc.usage, TextureUsageFlags::DepthStencil))
 			info.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-		if ((desc.usage & TextureUsageFlags::UnorderedAccess) != TextureUsageFlags::None)
+		if (anySet(desc.usage, TextureUsageFlags::ShaderStorage))
 			info.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
-		if ((desc.usage & TextureUsageFlags::ShaderResource) != TextureUsageFlags::None)
-			info.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
-		if ((desc.usage & TextureUsageFlags::TransferSrc) != TextureUsageFlags::None)
-			info.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-		if ((desc.usage & TextureUsageFlags::TransferDst) != TextureUsageFlags::None)
-			info.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
 		if (desc.type == TextureType::TextureCube ||
 			desc.type == TextureType::TextureCubeArray) {
@@ -515,8 +613,24 @@ namespace rhi::vulkan
 
 		return info;
 	}
-
-	inline VkSamplerAddressMode toVulkanAddressMode(AddressMode mode) {
+	VkPrimitiveTopology toVkPrimitiveTopology(PrimitiveType primitiveType) {
+		switch (primitiveType) {
+		case PrimitiveType::PointList:
+			return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+		case PrimitiveType::LineList:
+			return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+		case PrimitiveType::LineStrip:
+			return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+		case PrimitiveType::TriangleList:
+			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		case PrimitiveType::TriangleStrip:
+			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+		default:
+			SE_ASSERT(false, "Invalid topology primitive");
+			return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		}
+	}
+	VkSamplerAddressMode toVkAddressMode(AddressMode mode) {
 		switch (mode) {
 		case AddressMode::Wrap:
 			return VK_SAMPLER_ADDRESS_MODE_REPEAT;
@@ -527,11 +641,52 @@ namespace rhi::vulkan
 		case AddressMode::Border:
 			return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
 		default:
+			SE_ASSERT(false, "Invalid sampler mode");
 			return VK_SAMPLER_ADDRESS_MODE_REPEAT;
 		}
 	}
 
-	inline VkFilter toVulkanFilter(FilterMode filter) {
+	VkAttachmentLoadOp toVkLoadOp(RenderPassLoadOp loadOp) {
+		switch (loadOp)
+		{
+		case RenderPassLoadOp::Load:
+			return VK_ATTACHMENT_LOAD_OP_LOAD;
+		case RenderPassLoadOp::Clear:
+			return VK_ATTACHMENT_LOAD_OP_CLEAR;
+		case RenderPassLoadOp::DontCare:
+			return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+		default:
+			SE_ASSERT(false, "Load OP unknown");
+		}
+	}
+
+	VkAttachmentStoreOp toVkStoreOp(RenderPassStoreOp storeOp) {
+		switch (storeOp) {
+		case RenderPassStoreOp::Store:
+			return VK_ATTACHMENT_STORE_OP_STORE;
+		case RenderPassStoreOp::DontCare:
+			return VK_ATTACHMENT_STORE_OP_DONT_CARE;
+		default:
+			SE_ASSERT(false, "Store OP unknown");
+		}
+	}
+
+	VkSamplerAddressMode toVkSamplerAddressMode(AddressMode addressMode) {
+		switch (addressMode) {
+		case AddressMode::Wrap:
+			return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+		case AddressMode::Mirror:
+			return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+		case AddressMode::Clamp:
+			return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+		case AddressMode::Border:
+			return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+		default:
+			SE_ASSERT(false, "Address Mode unknown");
+		}
+	}
+
+	VkFilter toVkFilter(FilterMode filter) {
 		switch (filter) {
 		case FilterMode::Point:
 			return VK_FILTER_NEAREST;
@@ -544,7 +699,7 @@ namespace rhi::vulkan
 		}
 	}
 
-	inline VkImageViewCreateInfo imageViewCreateInfo() {
+	VkImageViewCreateInfo imageViewCreateInfo() {
 		VkImageViewCreateInfo info{ VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		info.subresourceRange.baseMipLevel = 0;
@@ -554,7 +709,125 @@ namespace rhi::vulkan
 		return info;
 	}
 
-	inline VkImageViewType getViewType(TextureType type) {
+	VkPipelineRasterizationStateCreateInfo toVkPipelineRasterizationStateCreateInfo(const Rasterizer& state) {
+		VkPipelineRasterizationStateCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
+		createInfo.depthClampEnable = !state.depthClip;
+		createInfo.polygonMode = state.wireframe ? VK_POLYGON_MODE_LINE : VK_POLYGON_MODE_FILL;
+		createInfo.cullMode = toVkCullMode(state.cullMode);
+		createInfo.frontFace = state.frontCounterClockwise ? VK_FRONT_FACE_COUNTER_CLOCKWISE : VK_FRONT_FACE_CLOCKWISE;
+		createInfo.depthBiasEnable = (state.depthBias != 0.0f || state.slopeScaledDepthBias != 0.0f);
+		createInfo.depthBiasConstantFactor = state.depthBias;
+		createInfo.depthBiasClamp = state.depthBiasClamp;
+		createInfo.depthBiasSlopeFactor = state.slopeScaledDepthBias;
+		createInfo.lineWidth = 1.0f;
+
+		SE_ASSERT(!state.conservativeRaster, "Conservative rasterization is not supported in this implementation.");
+
+		return createInfo;
+	}
+
+	VkCompareOp toVkCompareOp(CompareFunction func) {
+		switch (func) {
+		case CompareFunction::Never: return VK_COMPARE_OP_NEVER;
+		case CompareFunction::Less: return VK_COMPARE_OP_LESS;
+		case CompareFunction::Equal: return VK_COMPARE_OP_EQUAL;
+		case CompareFunction::LessEqual: return VK_COMPARE_OP_LESS_OR_EQUAL;
+		case CompareFunction::Greater: return VK_COMPARE_OP_GREATER;
+		case CompareFunction::NotEqual: return VK_COMPARE_OP_NOT_EQUAL;
+		case CompareFunction::GreaterEqual: return VK_COMPARE_OP_GREATER_OR_EQUAL;
+		case CompareFunction::Always: return VK_COMPARE_OP_ALWAYS;
+		default: return VK_COMPARE_OP_MAX_ENUM;
+		}
+	}
+
+	VkStencilOp toVkStencilOp(StencilOperation stencilOp) {
+		switch (stencilOp) {
+		case StencilOperation::Keep: return VK_STENCIL_OP_KEEP;
+		case StencilOperation::Zero: return VK_STENCIL_OP_ZERO;
+		case StencilOperation::Replace: return VK_STENCIL_OP_REPLACE;
+		case StencilOperation::IncrementClamp: return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+		case StencilOperation::DecrementClamp: return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+		case StencilOperation::Invert: return VK_STENCIL_OP_INVERT;
+		case StencilOperation::IncrementWrap: return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+		case StencilOperation::DecrementWrap: return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+		default: return VK_STENCIL_OP_MAX_ENUM;
+		}
+	}
+
+	VkStencilOpState toVkStencilOpState(const DepthStencilOperation& state, uint8_t readMask, uint8_t writeMask) {
+		VkStencilOpState stencilOpState = {};
+		stencilOpState.failOp = toVkStencilOp(state.stencilFail);
+		stencilOpState.depthFailOp = toVkStencilOp(state.depthFail);
+		stencilOpState.passOp = toVkStencilOp(state.pass);
+		stencilOpState.compareOp = toVkCompareOp(state.stencilFunction);
+		stencilOpState.compareMask = readMask;
+		stencilOpState.writeMask = writeMask;
+
+		return stencilOpState;
+	}
+
+	VkPipelineDepthStencilStateCreateInfo toVkPipelineDepthStencilStateCreateInfo(const DepthStencil& state) {
+		VkPipelineDepthStencilStateCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+		createInfo.depthTestEnable = state.depthTest;
+		createInfo.depthWriteEnable = state.depthWrite;
+		createInfo.depthCompareOp = toVkCompareOp(state.depthFunction);
+		createInfo.stencilTestEnable = state.stencilTest;
+		createInfo.front = toVkStencilOpState(state.frontFace, state.stencilReadMask, state.stencilWriteMask);
+		createInfo.back = toVkStencilOpState(state.backFace, state.stencilReadMask, state.stencilWriteMask);
+
+		return createInfo;
+	}
+
+	VkBlendFactor toVkBlendFactor(BlendFactor blendFactor, bool alpha) {
+		switch (blendFactor) {
+		case BlendFactor::Zero: return VK_BLEND_FACTOR_ZERO;
+		case BlendFactor::One: return VK_BLEND_FACTOR_ONE;
+		case BlendFactor::SrcColor: return VK_BLEND_FACTOR_SRC_COLOR;
+		case BlendFactor::InvSrcColor: return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+		case BlendFactor::SrcAlpha: return VK_BLEND_FACTOR_SRC_ALPHA;
+		case BlendFactor::InvSrcAlpha: return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		case BlendFactor::DstAlpha: return VK_BLEND_FACTOR_DST_ALPHA;
+		case BlendFactor::InvDstAlpha: return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+		case BlendFactor::DstColor: return VK_BLEND_FACTOR_DST_COLOR;
+		case BlendFactor::InvDstColor: return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+		case BlendFactor::SrcAlphaClamp: return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+		case BlendFactor::ConstantFactor: return alpha ? VK_BLEND_FACTOR_CONSTANT_ALPHA : VK_BLEND_FACTOR_CONSTANT_COLOR;
+		case BlendFactor::InvConstantFactor: return alpha ? VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA : VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+		default: return VK_BLEND_FACTOR_MAX_ENUM;
+		}
+	}
+
+	VkBlendOp toVkBlendOp(BlendOperation blendOp) {
+		switch (blendOp) {
+		case BlendOperation::Add: return VK_BLEND_OP_ADD;
+		case BlendOperation::Subtract: return VK_BLEND_OP_SUBTRACT;
+		case BlendOperation::ReverseSubtract: return VK_BLEND_OP_REVERSE_SUBTRACT;
+		case BlendOperation::Min: return VK_BLEND_OP_MIN;
+		case BlendOperation::Max: return VK_BLEND_OP_MAX;
+		default: return VK_BLEND_OP_MAX_ENUM;
+		}
+	}
+
+	VkPipelineColorBlendStateCreateInfo toVkPipelineColorBlendStateCreateInfo(const Blend* states, VkPipelineColorBlendAttachmentState* vkStates) {
+		for (uint32_t i = 0; i < 8; ++i) {
+			vkStates[i].blendEnable = states[i].blendEnabled;
+			vkStates[i].srcColorBlendFactor = toVkBlendFactor(states[i].colorSource);
+			vkStates[i].dstColorBlendFactor = toVkBlendFactor(states[i].colorDestination);
+			vkStates[i].colorBlendOp = toVkBlendOp(states[i].colorOperation);
+			vkStates[i].srcAlphaBlendFactor = toVkBlendFactor(states[i].alphaSource, true);
+			vkStates[i].dstAlphaBlendFactor = toVkBlendFactor(states[i].alphaDestination, true);
+			vkStates[i].alphaBlendOp = toVkBlendOp(states[i].alphaOperation);
+			vkStates[i].colorWriteMask = static_cast<VkColorComponentFlags>(states[i].writeMask);
+		}
+
+		VkPipelineColorBlendStateCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+		createInfo.attachmentCount = 8;
+		createInfo.pAttachments = vkStates;
+
+		return createInfo;
+	}
+
+	VkImageViewType getVkImageViewType(TextureType type) {
 		switch (type) {
 		case TextureType::Texture1D:
 			return VK_IMAGE_VIEW_TYPE_1D;
@@ -574,7 +847,7 @@ namespace rhi::vulkan
 		}
 	}
 
-	inline VkImageSubresourceRange getSubresourceRange(VkImageAspectFlags aspectMask, uint32_t baseMipLevel,
+	VkImageSubresourceRange getVkSubresourceRange(VkImageAspectFlags aspectMask, uint32_t baseMipLevel,
 		uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount) {
 		VkImageSubresourceRange range{};
 		range.aspectMask = aspectMask;
@@ -585,7 +858,27 @@ namespace rhi::vulkan
 		return range;
 	}
 
-	inline VkComponentMapping getComponentMapping(bool swizzleRGB) {
+	VkPipelineRenderingCreateInfo toVkPipelineRenderingCreateInfo(const GraphicsPipelineDescription& pipelineDesc, VkFormat* colorFormats)
+	{
+		for (uint32_t i = 0; i < 8; ++i)
+		{
+			colorFormats[i] = toVkFormat(pipelineDesc.renderTargetFormat[i], true);
+		}
+
+		VkPipelineRenderingCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
+		createInfo.colorAttachmentCount = 8;
+		createInfo.pColorAttachmentFormats = colorFormats;
+		createInfo.depthAttachmentFormat = toVkFormat(pipelineDesc.depthStencilFormat);
+
+		if (pipelineDesc.depthStencilFormat == Format::D32_SFLOAT_S8_UINT)
+		{
+			createInfo.stencilAttachmentFormat = createInfo.depthAttachmentFormat;
+		}
+
+		return createInfo;
+	}
+
+	VkComponentMapping getVkComponentMapping(bool swizzleRGB) {
 		if (swizzleRGB) {
 			return { VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_G,
 					VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_A };
@@ -594,88 +887,15 @@ namespace rhi::vulkan
 				VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
 	}
 
-	//struct QueueFamilyIndices {
-	//	uint32_t graphics = UINT32_MAX;
-	//	uint32_t compute = UINT32_MAX;
-	//	uint32_t transfer = UINT32_MAX;
-	//	uint32_t present = UINT32_MAX;
-
-	//	bool isComplete() const {
-	//		return graphics != UINT32_MAX &&
-	//			compute != UINT32_MAX &&
-	//			transfer != UINT32_MAX;
-	//	}
-
-	//	bool supportsPresent() const {
-	//		return present != UINT32_MAX;
-	//	}
-
-	//	std::vector<uint32_t> getUniqueIndices() const {
-	//		std::vector<uint32_t> indices;
-	//		if (graphics != UINT32_MAX) indices.push_back(graphics);
-
-	//		if (compute != UINT32_MAX && compute != graphics)
-	//			indices.push_back(compute);
-
-	//		if (transfer != UINT32_MAX && transfer != graphics && transfer != compute)
-	//			indices.push_back(transfer);
-
-	//		return indices;
-	//	}
-	//};
-
-	//inline VkCommandPoolCreateInfo commandPoolCreateInfo(uint32_t queueFamilyIndex,
-	//	VkCommandPoolCreateFlags flags = 0) {
-	//	VkCommandPoolCreateInfo info{ VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
-	//	info.queueFamilyIndex = queueFamilyIndex;
-	//	info.flags = flags;
-	//	return info;
-	//}
-
-	//inline VkCommandBufferAllocateInfo commandBufferAllocateInfo(VkCommandPool pool,
-	//	uint32_t count = 1,
-	//	VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY) {
-	//	VkCommandBufferAllocateInfo info{ VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
-	//	info.commandPool = pool;
-	//	info.commandBufferCount = count;
-	//	info.level = level;
-	//	return info;
-	//}
-
-	//inline VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0) {
-	//	VkFenceCreateInfo info{ VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-	//	info.flags = flags;
-	//	return info;
-	//}
-
-	//inline VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0) {
-	//	VkSemaphoreCreateInfo info{ VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-	//	info.flags = flags;
-	//	return info;
-	//}
-
-	//inline VkSubmitInfo2 submitInfo2() {
-	//	VkSubmitInfo2 info{ VK_STRUCTURE_TYPE_SUBMIT_INFO_2 };
-	//	return info;
-	//}
-
-	//inline VkPresentInfoKHR presentInfo() {
-	//	VkPresentInfoKHR info{ VK_STRUCTURE_TYPE_PRESENT_INFO_KHR };
-	//	return info;
-	//}
-
-	//inline VkRenderingAttachmentInfo renderingAttachmentInfo() {
-	//	VkRenderingAttachmentInfo info{ VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO };
-	//	return info;
-	//}
-
-	//inline VkRenderingInfo renderingInfo(VkRect2D renderArea,
-	//	uint32_t colorAttachmentCount = 1,
-	//	uint32_t layerCount = 1) {
-	//	VkRenderingInfo info{ VK_STRUCTURE_TYPE_RENDERING_INFO };
-	//	info.renderArea = renderArea;
-	//	info.layerCount = layerCount;
-	//	info.colorAttachmentCount = colorAttachmentCount;
-	//	return info;
-	//}
+	bool isStencilFormat(Format format)
+	{
+		switch (format) {
+		case Format::D24_UNORM_S8_UINT:
+		case Format::D32_SFLOAT_S8_UINT:
+		case Format::S8_UINT:
+			return true;
+		default:
+			return false;
+		}
+	}
 }

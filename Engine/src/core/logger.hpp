@@ -31,7 +31,7 @@ namespace SE {
 		Logger& operator=(Logger&&) = delete;
 
 		// Initialize logger with optional file output
-		void init(const std::filesystem::path& logFile = "");
+		void create(const std::filesystem::path& logFile = "");
 		void setLogLevel(LogLevel level);
 		void setShowTimestamps(bool show);
 		void setShowSourceLocation(bool show);

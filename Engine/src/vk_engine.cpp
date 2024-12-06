@@ -11,7 +11,6 @@
 
 #include <VkBootstrap.h>
 #include <vk_mem_alloc.h>
-#include <imgui_impl_vulkan.h>
 
 namespace SE
 {
@@ -129,7 +128,7 @@ namespace SE
 	//}
 
 	// Initialization
-	void Engine::init()
+	void Engine::create()
 	{
 		//windows::SetProcessDPIAware();
 		SDL_Init(SDL_INIT_VIDEO);
@@ -163,7 +162,7 @@ namespace SE
 		initScene();
 
 		m_Editor = CreateScoped<Editor>(this);
-		m_Editor->init();
+		m_Editor->create();
 		m_Camera = CreateShared<Camera>(m_Editor->getViewportState(), m_Window);
 
 		m_IsInitialized = true;
@@ -264,7 +263,7 @@ namespace SE
 			VK_IMAGE_LAYOUT_UNDEFINED,
 			VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 		//drawImgui(cmd, m_SwapchainImageViews[swapchainImageIndex]);
-		m_Editor->render(cmd, m_SwapchainImageViews[swapchainImageIndex]);
+		//m_Editor->render(cmd, m_SwapchainImageViews[swapchainImageIndex]);
 
 		// Prepare for presentation
 		vkUtil::transitionImage(cmd, m_SwapchainImages[swapchainImageIndex],
@@ -777,7 +776,7 @@ namespace SE
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10 },
 		};
 
-		m_GlobalDescriptorAllocator.init(m_Device, 10, sizes);
+		m_GlobalDescriptorAllocator.create(m_Device, 10, sizes);
 
 		// Make the descriptor set layout for our compute draw
 		{
@@ -815,7 +814,7 @@ namespace SE
 			};
 
 			m_Frames[i].descriptorAllocator = DescriptorAllocator{};
-			m_Frames[i].descriptorAllocator.init(m_Device, 1000, frame_sizes);
+			m_Frames[i].descriptorAllocator.create(m_Device, 1000, frame_sizes);
 			m_Frames[i].sceneDescriptorSet = m_Frames[i].descriptorAllocator.allocate(m_Device, m_SceneDescriptorLayout);
 
 			m_MainCleanupQueue.enqueueCleanup([&, i]() {
@@ -1282,7 +1281,7 @@ namespace SE
 			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1.0f },
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 5.0f } // 5 textures per material
 		};
-		m_MaterialDescriptorPool.init(engine->getDevice(), 1000, poolSizes); // Support for 1000 materials
+		m_MaterialDescriptorPool.create(engine->getDevice(), 1000, poolSizes); // Support for 1000 materials
 	}
 
 	void MaterialSystem::cleanup(VkDevice device) {

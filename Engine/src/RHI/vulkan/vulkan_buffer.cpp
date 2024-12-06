@@ -1,10 +1,8 @@
 #pragma once
 #include "vulkan_buffer.hpp"
 #include "vulkan_device.hpp"
-#include <cassert>
 
 namespace rhi::vulkan {
-
 	VulkanBuffer::VulkanBuffer(VulkanDevice* device, const BufferDescription& desc, const std::string& name)
 	{
 		m_Device = device;
@@ -22,8 +20,34 @@ namespace rhi::vulkan {
 		VkBufferCreateInfo bufferInfo = {};
 		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		bufferInfo.size = m_Description.size;
-		bufferInfo.usage = translateBufferUsage(m_Description.usage);
 		bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		bufferInfo.usage =
+			VK_BUFFER_USAGE_TRANSFER_SRC_BIT |
+			VK_BUFFER_USAGE_TRANSFER_DST_BIT |
+			VK_BUFFER_USAGE_INDEX_BUFFER_BIT |
+			VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
+
+		if (anySet(m_Description.usage, BufferUsageFlags::UniformBuffer))
+		{
+			bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+		}
+
+		if (anySet(m_Description.usage, BufferUsageFlags::StructuredBuffer | BufferUsageFlags::RawBuffer))
+		{
+			bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+		}
+
+		if (anySet(m_Description.usage, BufferUsageFlags::FormattedBuffer))
+		{
+			if (anySet(m_Description.usage, BufferUsageFlags::StorageBuffer))
+			{
+				bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
+			}
+			else
+			{
+				bufferInfo.usage |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
+			}
+		}
 
 		VmaAllocationCreateInfo allocInfo = {};
 		allocInfo.usage = translateMemoryType(m_Description.memoryType);
@@ -32,7 +56,7 @@ namespace rhi::vulkan {
 			allocInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;
 		}
 
-		if (vmaCreateBuffer(((VulkanDevice*)m_Device)->getAllocator(), &bufferInfo, &allocInfo,
+		if (vmaCreateBuffer(((VulkanDevice*)m_Device)->getVmaAllocator(), &bufferInfo, &allocInfo,
 			&m_Buffer, &m_Allocation, nullptr) != VK_SUCCESS) {
 			return false;
 		}
@@ -45,7 +69,7 @@ namespace rhi::vulkan {
 			return m_MappedData;
 		}
 
-		if (vmaMapMemory(((VulkanDevice*)m_Device)->getAllocator(), m_Allocation, &m_MappedData) != VK_SUCCESS) {
+		if (vmaMapMemory(((VulkanDevice*)m_Device)->getVmaAllocator(), m_Allocation, &m_MappedData) != VK_SUCCESS) {
 			return nullptr;
 		}
 
@@ -58,7 +82,7 @@ namespace rhi::vulkan {
 			return;
 		}
 
-		vmaUnmapMemory(((VulkanDevice*)m_Device)->getAllocator(), m_Allocation);
+		vmaUnmapMemory(((VulkanDevice*)m_Device)->getVmaAllocator(), m_Allocation);
 		m_MappedData = nullptr;
 		m_Mapped = false;
 	}
@@ -70,7 +94,7 @@ namespace rhi::vulkan {
 
 		return vkGetBufferDeviceAddress(((VulkanDevice*)m_Device)->getDevice(), &addressInfo);
 	}
-	void* VulkanBuffer::getCpuAddress() 
+	void* VulkanBuffer::getCpuAddress()
 	{
 		return m_MappedData;
 	}

@@ -18,6 +18,8 @@ namespace rhi::vulkan
 		bool isSwapchainTexture() const { return m_IsSwapchainImage; };
 		//Res interface
 		virtual void* getHandle() const override { return m_Image; };
+		virtual bool isTexture() const override { return true; };
+
 		uint32_t getRequiredStagingBufferSize() const;
 		VkImageView getRenderView(uint32_t mipSlice, uint32_t arraySlice);
 
