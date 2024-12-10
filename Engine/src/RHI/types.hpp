@@ -576,7 +576,6 @@ namespace rhi {
 		std::string entryPoint;
 		std::vector<std::string> defines;
 	};
-
 	struct SwapchainDescription {
 		void* windowHandle = nullptr;
 		uint32_t width = 0;

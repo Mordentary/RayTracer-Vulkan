@@ -26,7 +26,6 @@ namespace rhi::vulkan
 		virtual void* getHandle() const override { return m_Device; }
 		void beginFrame() override;
 		void endFrame() override;
-		uint32_t getFrameID() const override { return m_FrameID % SE::SE_MAX_FRAMES_IN_FLIGHT; };
 
 		virtual CommandList* createCommandList(CommandType type, const std::string& name) override;
 		virtual Swapchain* createSwapchain(const SwapchainDescription& desc, const std::string& name) override;

@@ -30,9 +30,13 @@ namespace rhi::vulkan
 	VkFormat toVkFormat(Format format, bool sRGB) {
 		switch (format) {
 		case Format::R8G8B8A8_UNORM:
-			return sRGB ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM;
+			return VK_FORMAT_R8G8B8A8_UNORM;
+		case Format::R8G8B8A8_SRGB:
+			return VK_FORMAT_R8G8B8A8_SRGB;
 		case Format::B8G8R8A8_UNORM:
-			return sRGB ? VK_FORMAT_B8G8R8A8_SRGB : VK_FORMAT_B8G8R8A8_UNORM;
+			return  VK_FORMAT_B8G8R8A8_UNORM;
+		case Format::B8G8R8A8_SRGB:
+			return VK_FORMAT_B8G8R8A8_SRGB;
 		case Format::R16G16B16A16_SFLOAT:
 			return VK_FORMAT_R16G16B16A16_SFLOAT;
 		case Format::R32G32B32A32_SFLOAT:
@@ -593,8 +597,10 @@ namespace rhi::vulkan
 		info.arrayLayers = desc.arraySize;
 		info.samples = VK_SAMPLE_COUNT_1_BIT;
 		info.tiling = VK_IMAGE_TILING_OPTIMAL;
+		info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-		info.usage = 0;
+		info.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;;
 		if (anySet(desc.usage, TextureUsageFlags::RenderTarget))
 			info.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 		if (anySet(desc.usage, TextureUsageFlags::DepthStencil))
@@ -607,9 +613,6 @@ namespace rhi::vulkan
 			info.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 			SE_ASSERT(desc.arraySize % 6 == 0, "Cube texture array size must be a multiple of 6");
 		}
-
-		info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
 		return info;
 	}
@@ -866,7 +869,7 @@ namespace rhi::vulkan
 		}
 
 		VkPipelineRenderingCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO };
-		createInfo.colorAttachmentCount = 8;
+		createInfo.colorAttachmentCount = 1;
 		createInfo.pColorAttachmentFormats = colorFormats;
 		createInfo.depthAttachmentFormat = toVkFormat(pipelineDesc.depthStencilFormat);
 

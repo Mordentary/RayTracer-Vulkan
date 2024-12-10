@@ -20,7 +20,9 @@ namespace rhi {
 		virtual void* getHandle() const = 0;
 		virtual void beginFrame() = 0;
 		virtual void endFrame() = 0;
-		virtual uint32_t getFrameID() const = 0;
+
+		uint32_t getFrameID() const { return m_FrameID % SE::SE_MAX_FRAMES_IN_FLIGHT; };
+		const DeviceDescription& getDescription() const { return m_Description; }
 
 		// Core resource creation
 		virtual CommandList* createCommandList(CommandType queue_type, const std::string& name) = 0;

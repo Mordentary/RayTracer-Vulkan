@@ -267,7 +267,7 @@ namespace SE {
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::NewFrame();
 
-		setupDockspace();
+		//setupDockspace();
 		drawViewport();
 		drawDebugWindows();
 	}

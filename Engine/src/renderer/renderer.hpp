@@ -3,8 +3,10 @@
 #include "../RHI/rhi.hpp"
 #include "engine_core.h"
 #include<array>
+
 namespace SE
 {
+	class ShaderCompiler;
 	class Renderer
 	{
 	public:
@@ -37,6 +39,7 @@ namespace SE
 		uint64_t m_CurrentFenceFrameValue = 0;
 		std::array<FrameResources, SE_MAX_FRAMES_IN_FLIGHT> m_FrameResources{};
 
+		ShaderCompiler* compiler;
 	private:
 		void onWindowResize(uint32_t width, uint32_t height);
 		void onViewportResize(uint32_t width, uint32_t height);

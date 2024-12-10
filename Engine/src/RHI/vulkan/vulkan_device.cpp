@@ -254,73 +254,87 @@ namespace rhi::vulkan {
 
 	bool VulkanDevice::createPipelineLayout()
 	{
-		VkDescriptorType mutableDescriptorTypes[7] =
+		//VkDescriptorType mutableDescriptorTypes[7] =
+		//{
+		//	VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
+		//	VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+		//	VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
+		//	VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
+		//	VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		//	VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+		//	VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR
+		//};
+
+		//VkMutableDescriptorTypeListEXT mutableDescriptorList;
+		//mutableDescriptorList.descriptorTypeCount = 7;
+		//mutableDescriptorList.pDescriptorTypes = mutableDescriptorTypes;
+
+		//VkMutableDescriptorTypeCreateInfoEXT mutableDescriptorInfo = { VK_STRUCTURE_TYPE_MUTABLE_DESCRIPTOR_TYPE_CREATE_INFO_EXT };
+		//mutableDescriptorInfo.mutableDescriptorTypeListCount = 1;
+		//mutableDescriptorInfo.pMutableDescriptorTypeLists = &mutableDescriptorList;
+
+		//VkDescriptorSetLayoutBinding uniformBuffer[SE_MAX_UBV_BINDINGS] = {};
+		//uniformBuffer[0].descriptorType = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
+		//uniformBuffer[0].descriptorCount = sizeof(uint32_t) * SE_MAX_PUSH_CONSTANTS;
+		//uniformBuffer[0].stageFlags = VK_SHADER_STAGE_ALL;
+
+		//for (uint32_t i = 1; i < SE_MAX_UBV_BINDINGS; ++i)
+		//{
+		//	uniformBuffer[i].binding = i;
+		//	uniformBuffer[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		//	uniformBuffer[i].descriptorCount = 1;
+		//	uniformBuffer[i].stageFlags = VK_SHADER_STAGE_ALL;
+		//}
+
+		//VkDescriptorSetLayoutBinding mutableResourceBinding = {};
+		//mutableResourceBinding.descriptorType = VK_DESCRIPTOR_TYPE_MUTABLE_EXT;
+		//mutableResourceBinding.descriptorCount = SE_MAX_RESOURCE_DESCRIPTOR_COUNT;
+		//mutableResourceBinding.stageFlags = VK_SHADER_STAGE_ALL;
+
+		//VkDescriptorSetLayoutBinding staticSamplerBinding = {};
+		//staticSamplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+		//staticSamplerBinding.descriptorCount = SE_MAX_SAMPLER_DESCRIPTOR_COUNT;
+		//staticSamplerBinding.stageFlags = VK_SHADER_STAGE_ALL;
+
+		//VkDescriptorSetLayoutCreateInfo setLayoutInfo0 = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO }; // constant buffers
+		//setLayoutInfo0.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+		//setLayoutInfo0.bindingCount = SE_MAX_UBV_BINDINGS;
+		//setLayoutInfo0.pBindings = uniformBuffer;
+
+		//VkDescriptorSetLayoutCreateInfo setLayoutInfo1 = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO }; // resource descriptor array
+		//setLayoutInfo1.pNext = &mutableDescriptorInfo;
+		//setLayoutInfo1.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+		//setLayoutInfo1.bindingCount = 1;
+		//setLayoutInfo1.pBindings = &mutableResourceBinding;
+
+		//VkDescriptorSetLayoutCreateInfo setLayoutInfo2 = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO }; // sampler descriptor array
+		//setLayoutInfo2.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
+		//setLayoutInfo2.bindingCount = 1;
+		//setLayoutInfo2.pBindings = &staticSamplerBinding;
+
+		//vkCreateDescriptorSetLayout(m_Device, &setLayoutInfo0, nullptr, &m_descriptorSetLayout[0]);
+		//vkCreateDescriptorSetLayout(m_Device, &setLayoutInfo1, nullptr, &m_descriptorSetLayout[1]);
+		//vkCreateDescriptorSetLayout(m_Device, &setLayoutInfo2, nullptr, &m_descriptorSetLayout[2]);
+
+		//VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+		//createInfo.setLayoutCount = 3;
+		//createInfo.pSetLayouts = m_descriptorSetLayout;
+
+		//VK_CHECK_RETURN(vkCreatePipelineLayout(m_Device, &createInfo, nullptr, &m_PipelineLayout), false, "Pipeline layout creation failed!");
+
+		VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+		pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+		pipelineLayoutInfo.setLayoutCount = 0;            // No descriptor sets
+		pipelineLayoutInfo.pSetLayouts = nullptr;         // No descriptor sets
+		pipelineLayoutInfo.pushConstantRangeCount = 0;    // No push constants
+		pipelineLayoutInfo.pPushConstantRanges = nullptr; // No push constants
+
+		VkResult result = vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout);
+		if (result != VK_SUCCESS)
 		{
-			VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,
-			VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-			VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,
-			VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,
-			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-			VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR
-		};
-
-		VkMutableDescriptorTypeListEXT mutableDescriptorList;
-		mutableDescriptorList.descriptorTypeCount = 7;
-		mutableDescriptorList.pDescriptorTypes = mutableDescriptorTypes;
-
-		VkMutableDescriptorTypeCreateInfoEXT mutableDescriptorInfo = { VK_STRUCTURE_TYPE_MUTABLE_DESCRIPTOR_TYPE_CREATE_INFO_EXT };
-		mutableDescriptorInfo.mutableDescriptorTypeListCount = 1;
-		mutableDescriptorInfo.pMutableDescriptorTypeLists = &mutableDescriptorList;
-
-		VkDescriptorSetLayoutBinding uniformBuffer[SE_MAX_UBV_BINDINGS] = {};
-		uniformBuffer[0].descriptorType = VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK;
-		uniformBuffer[0].descriptorCount = sizeof(uint32_t) * SE_MAX_PUSH_CONSTANTS;
-		uniformBuffer[0].stageFlags = VK_SHADER_STAGE_ALL;
-
-		for (uint32_t i = 1; i < SE_MAX_UBV_BINDINGS; ++i)
-		{
-			uniformBuffer[i].binding = i;
-			uniformBuffer[i].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-			uniformBuffer[i].descriptorCount = 1;
-			uniformBuffer[i].stageFlags = VK_SHADER_STAGE_ALL;
+			throw std::runtime_error("Failed to create pipeline layout!");
 		}
 
-		VkDescriptorSetLayoutBinding mutableResourceBinding = {};
-		mutableResourceBinding.descriptorType = VK_DESCRIPTOR_TYPE_MUTABLE_EXT;
-		mutableResourceBinding.descriptorCount = SE_MAX_RESOURCE_DESCRIPTOR_COUNT;
-		mutableResourceBinding.stageFlags = VK_SHADER_STAGE_ALL;
-
-		VkDescriptorSetLayoutBinding staticSamplerBinding = {};
-		staticSamplerBinding.descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-		staticSamplerBinding.descriptorCount = SE_MAX_SAMPLER_DESCRIPTOR_COUNT;
-		staticSamplerBinding.stageFlags = VK_SHADER_STAGE_ALL;
-
-		VkDescriptorSetLayoutCreateInfo setLayoutInfo0 = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO }; // constant buffers
-		setLayoutInfo0.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
-		setLayoutInfo0.bindingCount = SE_MAX_UBV_BINDINGS;
-		setLayoutInfo0.pBindings = uniformBuffer;
-
-		VkDescriptorSetLayoutCreateInfo setLayoutInfo1 = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO }; // resource descriptor array
-		setLayoutInfo1.pNext = &mutableDescriptorInfo;
-		setLayoutInfo1.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
-		setLayoutInfo1.bindingCount = 1;
-		setLayoutInfo1.pBindings = &mutableResourceBinding;
-
-		VkDescriptorSetLayoutCreateInfo setLayoutInfo2 = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO }; // sampler descriptor array
-		setLayoutInfo2.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_DESCRIPTOR_BUFFER_BIT_EXT;
-		setLayoutInfo2.bindingCount = 1;
-		setLayoutInfo2.pBindings = &staticSamplerBinding;
-
-		vkCreateDescriptorSetLayout(m_Device, &setLayoutInfo0, nullptr, &m_descriptorSetLayout[0]);
-		vkCreateDescriptorSetLayout(m_Device, &setLayoutInfo1, nullptr, &m_descriptorSetLayout[1]);
-		vkCreateDescriptorSetLayout(m_Device, &setLayoutInfo2, nullptr, &m_descriptorSetLayout[2]);
-
-		VkPipelineLayoutCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
-		createInfo.setLayoutCount = 3;
-		createInfo.pSetLayouts = m_descriptorSetLayout;
-
-		VK_CHECK_RETURN(vkCreatePipelineLayout(m_Device, &createInfo, nullptr, &m_PipelineLayout), false, "Pipeline layout creation failed!");
 		return true;
 	}
 
@@ -547,13 +561,13 @@ namespace rhi::vulkan {
 
 	Shader* VulkanDevice::createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name)
 	{
-		VulkanShader* texture = new VulkanShader(this, desc, name);
-		if (!texture->create(data))
+		VulkanShader* shader = new VulkanShader(this, desc, name);
+		if (!shader->create(data))
 		{
-			delete texture;
+			delete shader;
 			return nullptr;
 		}
-		return texture;
+		return shader;
 	}
 
 	Pipeline* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name)

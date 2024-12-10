@@ -1,5 +1,6 @@
 #include"renderer.hpp"
 #include"core/engine.hpp"
+#include"shader_compiler.hpp"
 
 using namespace rhi;
 namespace SE
@@ -49,6 +50,50 @@ namespace SE
 		//shaderDesc.type = ShaderType::Pixel;
 		//Shader* shader = m_Device->createShader();
 		initFrameResources();
+
+		compiler = new ShaderCompiler(this);
+
+		std::vector<uint8_t> vsBinary;
+		bool vsSuccess = compiler->compile(
+			"shader.hlsl",       // Path to HLSL file
+			"VSMain",            // Entry point for Vertex Shader
+			rhi::ShaderType::Vertex,
+			{},                   // Defines
+			vsBinary              // Output binary
+		);
+
+		if (!vsSuccess) {
+			// Handle compilation failure for Vertex Shader
+		}
+
+		std::vector<uint8_t> psBinary;
+		bool psSuccess = compiler->compile(
+			"shader.hlsl",       // Path to HLSL file
+			"PSMain",            // Entry point for Vertex Shader
+			rhi::ShaderType::Pixel,
+			{},                   // Defines
+			psBinary              // Output binary
+		);
+
+		if (!psSuccess) {
+			// Handle compilation failure for Pixel Shader
+		}
+
+		ShaderDescription shaderDesc{};
+		shaderDesc.type = ShaderType::Vertex;
+		shaderDesc.file = "shader.hlsl";
+		shaderDesc.entryPoint = "VSMain";
+		Shader* shaderVS = m_Device->createShader(shaderDesc, vsBinary, "TestShaderVS");
+		shaderDesc.type = ShaderType::Pixel;
+		shaderDesc.entryPoint = "PSMain";
+		Shader* shaderPS = m_Device->createShader(shaderDesc, psBinary, "TestShaderPS");
+
+		GraphicsPipelineDescription pipeDesc{};
+		pipeDesc.vertexShader = shaderVS;
+		pipeDesc.pixelShader = shaderPS;
+		pipeDesc.renderTargetFormat[0] = Format::R8G8B8A8_UNORM;
+		pipeDesc.depthStencilFormat = Format::D24_UNORM_S8_UINT;
+		m_DefaultPipeline = m_Device->createGraphicsPipelineState(pipeDesc, "TestGraphicsPipeline");
 	}
 	void Renderer::createRenderTarget(uint32_t renderWidth, uint32_t renderHeight)
 	{
@@ -57,6 +102,7 @@ namespace SE
 		m_RenderTargetSize.y = renderHeight;
 		rhi::TextureDescription textAttachDesc{};
 		textAttachDesc.usage = TextureUsageFlags::RenderTarget;
+
 		textAttachDesc.format = Format::R16G16B16A16_UNORM;
 		textAttachDesc.width = renderWidth;
 		textAttachDesc.height = renderHeight;
@@ -97,26 +143,26 @@ namespace SE
 		m_Swapchain->acquireNextImage();
 		//commandList->textureBarrier(m_RenderTargetColor.get(), ResourceAccessFlags::Discard, ResourceAccessFlags::RenderTarget);
 
-		rhi::RenderPassDescription renderPass;
-		renderPass.color[0].texture = m_RenderTargetColor.get();
-		renderPass.color[0].loadOp = RenderPassLoadOp::DontCare;
-		renderPass.depth.texture = m_RenderTargetDepth.get();
-		renderPass.depth.loadOp = RenderPassLoadOp::DontCare;
-		renderPass.depth.stencilLoadOp = RenderPassLoadOp::DontCare;
-		renderPass.depth.storeOp = RenderPassStoreOp::DontCare;
-		renderPass.depth.stencilStoreOp = RenderPassStoreOp::DontCare;
-		renderPass.depth.readOnly = false;
-
-		commandList->beginRenderPass(renderPass);
-		//commandList->bindPipeline();
-		commandList->endRenderPass();
-
-		//commandList->textureBarrier(m_RenderTargetColor.get(), ResourceAccessFlags::RenderTarget, ResourceAccessFlags::ShaderRead);
 		Texture* presentImage = m_Swapchain->getCurrentSwapchainImage();
 		commandList->textureBarrier(presentImage, ResourceAccessFlags::Present, ResourceAccessFlags::RenderTarget);
+		rhi::RenderPassDescription renderPass;
 		renderPass.color[0].texture = presentImage;
 		renderPass.color[0].loadOp = RenderPassLoadOp::DontCare;
-		renderPass.depth.texture = nullptr;
+		//renderPass.depth.texture = m_RenderTargetDepth.get();
+		//renderPass.depth.loadOp = RenderPassLoadOp::DontCare;
+		//renderPass.depth.stencilLoadOp = RenderPassLoadOp::DontCare;
+		//renderPass.depth.storeOp = RenderPassStoreOp::DontCare;
+		//renderPass.depth.stencilStoreOp = RenderPassStoreOp::DontCare;
+		//renderPass.depth.readOnly = false;
+
+		commandList->beginRenderPass(renderPass);
+		commandList->bindPipeline(m_DefaultPipeline);
+		commandList->draw(3, 1);
+		commandList->endRenderPass();
+
+		//renderPass.color[0].texture = presentImage;
+		//renderPass.color[0].loadOp = RenderPassLoadOp::DontCare;
+		//renderPass.depth.texture = nullptr;
 		commandList->beginRenderPass(renderPass);
 
 		Engine::getInstance().getEditor().render(commandList);
