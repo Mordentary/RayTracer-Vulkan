@@ -10,16 +10,6 @@ namespace rhi::vulkan
 	static constexpr uint32_t MaxSamplerAnisotropy = 16;
 	static constexpr uint32_t RHI_INVALID_RESOURCE = uint32_t(-1);
 
-	template<typename Enum>
-	inline bool anySet(Enum flags, Enum mask) {
-		using underlying = typename std::underlying_type<Enum>::type;
-		return (static_cast<underlying>(flags) & static_cast<underlying>(mask)) != 0;
-	}
-	template<typename T>
-	constexpr T alignToPowerOfTwo(T value, T alignment) {
-		SE_ASSERT_NOMSG((alignment & (alignment - 1)) == 0); // Verify power of 2
-		return (value + (alignment - 1)) & ~(alignment - 1);
-	}
 	template<typename T>
 	inline void setDebugName(VkDevice device, VkObjectType type, T object, const char* name) {
 		VkDebugUtilsObjectNameInfoEXT info = { VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT };

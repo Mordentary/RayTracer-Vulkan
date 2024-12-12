@@ -55,7 +55,7 @@ namespace SE
 
 		std::vector<uint8_t> vsBinary;
 		bool vsSuccess = compiler->compile(
-			"shader.hlsl",       // Path to HLSL file
+			"triangleShader.hlsl",       // Path to HLSL file
 			"VSMain",            // Entry point for Vertex Shader
 			rhi::ShaderType::Vertex,
 			{},                   // Defines
@@ -68,7 +68,7 @@ namespace SE
 
 		std::vector<uint8_t> psBinary;
 		bool psSuccess = compiler->compile(
-			"shader.hlsl",       // Path to HLSL file
+			"triangleShader.hlsl",       // Path to HLSL file
 			"PSMain",            // Entry point for Vertex Shader
 			rhi::ShaderType::Pixel,
 			{},                   // Defines
@@ -134,7 +134,7 @@ namespace SE
 	{
 		if (m_FrameFence)
 		{
-			m_FrameFence->wait(m_CurrentFenceFrameValue);
+			m_FrameFence->wait(m_CurrenFrameFenceValue);
 		}
 	}
 
@@ -154,7 +154,6 @@ namespace SE
 		//renderPass.depth.storeOp = RenderPassStoreOp::DontCare;
 		//renderPass.depth.stencilStoreOp = RenderPassStoreOp::DontCare;
 		//renderPass.depth.readOnly = false;
-
 		commandList->beginRenderPass(renderPass);
 		commandList->bindPipeline(m_DefaultPipeline);
 		commandList->draw(3, 1);
@@ -178,9 +177,10 @@ namespace SE
 			frame.commandList.reset(m_Device->createCommandList(rhi::CommandType::Graphics, "MainCommands"));
 			frame.computeCommandList.reset(m_Device->createCommandList(rhi::CommandType::Compute, "ComputeCommands"));
 			frame.uploadCommandList.reset(m_Device->createCommandList(rhi::CommandType::Copy, "UploadCommands"));
-			//frame.stagingBufferAllocator.reset(m_Device->createBuffer());
+			frame.stagingBufferAllocator = CreateScoped<StagingBufferAllocator>(this);
 		}
 		m_FrameFence.reset(m_Device->createFence("FrameFence"));
+		m_UploadFence.reset(m_Device->createFence("UploadFence"));
 	}
 
 	void SE::Renderer::beginFrame()
@@ -211,10 +211,10 @@ namespace SE
 		rhi::CommandList* pCommandList = frame.commandList.get();
 		pCommandList->end();
 
-		frame.frameFenceValue = ++m_CurrentFenceFrameValue;
+		frame.frameFenceValue = ++m_CurrenFrameFenceValue;
 
 		pCommandList->present(m_Swapchain.get());
-		pCommandList->signal(m_FrameFence.get(), m_CurrentFenceFrameValue);
+		pCommandList->signal(m_FrameFence.get(), m_CurrenFrameFenceValue);
 		pCommandList->submit();
 
 		m_Device->endFrame();
@@ -222,6 +222,53 @@ namespace SE
 
 	void SE::Renderer::uploadResources()
 	{
+		if (m_PendingTextureUploads.empty() && m_PendingBufferUpload.empty())
+		{
+			return;
+		}
+
+		uint32_t frame_index = m_Device->getFrameID() % SE_MAX_FRAMES_IN_FLIGHT;
+
+		FrameResources& currentFrame = m_FrameResources[frame_index];
+		rhi::CommandList* uploadCommandList = currentFrame.uploadCommandList.get();
+		uploadCommandList->resetAllocator();
+		uploadCommandList->begin();
+
+		{
+			for (size_t i = 0; i < m_PendingBufferUpload.size(); ++i)
+			{
+				const BufferUpload& upload = m_PendingBufferUpload[i];
+				uploadCommandList->copyBuffer(upload.buffer, upload.offset,
+					upload.staging_buffer.buffer, upload.staging_buffer.offset, upload.staging_buffer.size);
+			}
+
+			for (size_t i = 0; i < m_PendingTextureUploads.size(); ++i)
+			{
+				const TextureUpload& upload = m_PendingTextureUploads[i];
+				uploadCommandList->copyBufferToTexture(upload.texture, upload.mip_level, upload.array_slice,
+					upload.staging_buffer.buffer, upload.staging_buffer.offset + upload.offset);
+			}
+		}
+
+		uploadCommandList->end();
+		uploadCommandList->signal(m_UploadFence.get(), ++m_CurrentUploadFenceValue);
+		uploadCommandList->submit();
+
+		CommandList* commandList = currentFrame.commandList.get();
+		commandList->wait(m_UploadFence.get(), m_CurrentUploadFenceValue);
+
+		if (m_Device->getDescription().backend == rhi::RenderBackend::Vulkan)
+		{
+			for (size_t i = 0; i < m_PendingTextureUploads.size(); ++i)
+			{
+				const TextureUpload& upload = m_PendingTextureUploads[i];
+				commandList->textureBarrier(upload.texture,
+					rhi::ResourceAccessFlags::TransferDst, rhi::ResourceAccessFlags::ShaderRead);
+			}
+		}
+
+		m_PendingBufferUpload.clear();
+		m_PendingTextureUploads.clear();
 	}
 	void SE::Renderer::render()
 	{

@@ -21,7 +21,7 @@ namespace rhi {
 		virtual void beginFrame() = 0;
 		virtual void endFrame() = 0;
 
-		uint32_t getFrameID() const { return m_FrameID % SE::SE_MAX_FRAMES_IN_FLIGHT; };
+		uint64_t getFrameID() const { return m_FrameID % SE::SE_MAX_FRAMES_IN_FLIGHT; };
 		const DeviceDescription& getDescription() const { return m_Description; }
 
 		// Core resource creation

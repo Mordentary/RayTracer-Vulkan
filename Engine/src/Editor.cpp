@@ -3,7 +3,6 @@
 #include "core/engine.hpp"
 #include "RHI/vulkan/vulkan_device.hpp"
 #include "RHI/vulkan/vulkan_swapchain.hpp"
-#include "vk_initializers.h"
 
 #define IMGUI_IMPL_VULKAN_USE_VOLK
 #include <imgui_impl_sdl2.h>

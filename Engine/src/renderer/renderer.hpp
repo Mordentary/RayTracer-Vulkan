@@ -3,6 +3,7 @@
 #include "../RHI/rhi.hpp"
 #include "engine_core.h"
 #include<array>
+#include "staging_buffer_allocator.hpp"
 
 namespace SE
 {
@@ -14,8 +15,10 @@ namespace SE
 		~Renderer();
 		void createDevice(rhi::RenderBackend backend, void* window_handle, uint32_t window_width, uint32_t window_height);
 		void createRenderTarget(uint32_t renderWidth, uint32_t renderHeight);
+
 		void renderFrame();
 		rhi::Device* getDevice() const { return m_Device.get(); }
+		uint64_t getFrameID() { return m_Device->getFrameID(); };
 		rhi::Swapchain* getSwapchain() const { return m_Swapchain.get(); }
 		rhi::Texture* getRenderTarget() const { return m_RenderTargetColor.get(); }
 	private:
@@ -32,14 +35,33 @@ namespace SE
 			Scoped<rhi::CommandList> commandList = nullptr;
 			Scoped<rhi::CommandList> computeCommandList = nullptr;
 			Scoped<rhi::CommandList> uploadCommandList = nullptr;
-			Scoped<rhi::Buffer> stagingBufferAllocator = nullptr;
+			Scoped<StagingBufferAllocator> stagingBufferAllocator = nullptr;
 		};
 
+		Scoped<rhi::Fence> m_UploadFence = nullptr;
 		Scoped<rhi::Fence> m_FrameFence = nullptr;
-		uint64_t m_CurrentFenceFrameValue = 0;
+		uint64_t m_CurrenFrameFenceValue = 0;
+		uint64_t m_CurrentUploadFenceValue = 0;
 		std::array<FrameResources, SE_MAX_FRAMES_IN_FLIGHT> m_FrameResources{};
 
 		ShaderCompiler* compiler;
+		struct TextureUpload
+		{
+			rhi::Texture* texture;
+			uint32_t mip_level;
+			uint32_t array_slice;
+			StagingBuffer staging_buffer;
+			uint32_t offset;
+		};
+		std::vector<TextureUpload> m_PendingTextureUploads;
+
+		struct BufferUpload
+		{
+			rhi::Buffer* buffer;
+			uint32_t offset;
+			StagingBuffer staging_buffer;
+		};
+		std::vector<BufferUpload> m_PendingBufferUpload;
 	private:
 		void onWindowResize(uint32_t width, uint32_t height);
 		void onViewportResize(uint32_t width, uint32_t height);

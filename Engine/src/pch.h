@@ -32,8 +32,6 @@
 // Vulkan Headers
 
 #include"volk\volk.h"
-#include <vk_initializers.h>
-#include <vk_images.h>
 #include <engine_core.h>
 
 // Vulkan Memory Allocator
