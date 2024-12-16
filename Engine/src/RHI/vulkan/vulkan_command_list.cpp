@@ -171,6 +171,16 @@ namespace rhi::vulkan {
 			descriptorBuffer[2].usage = VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT;
 
 			vkCmdBindDescriptorBuffersEXT(m_CommandBuffer, 3, descriptorBuffer);
+
+			uint32_t bufferIndices[] = { 1, 2 };
+			VkDeviceSize offsets[] = { 0, 0 };
+
+			//vkCmdSetDescriptorBufferOffsetsEXT(m_CommandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, device->getPipelineLayout(), 1, 2, bufferIndices, offsets);
+
+			if (m_CommandType == CommandType::Graphics)
+			{
+				vkCmdSetDescriptorBufferOffsetsEXT(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, device->getPipelineLayout(), 1, 2, bufferIndices, offsets);
+			}
 		}
 	}
 
@@ -468,10 +478,56 @@ namespace rhi::vulkan {
 
 	void VulkanCommandList::setGraphicsPushConstants(uint32_t slot, const void* data, size_t dataSize)
 	{
+		if (slot == 0)
+		{
+			SE_ASSERT_NOMSG(dataSize <= SE_MAX_PUSH_CONSTANTS * sizeof(uint32_t));
+			memcpy(m_GraphicsConstants.ubv0, data, dataSize);
+		}
+		else
+		{
+			SE_ASSERT_NOMSG(slot < SE_MAX_UBV_BINDINGS);
+			VkDeviceAddress gpuAddress = ((VulkanDevice*)m_Device)->allocateUniformBuffer(data, dataSize);
+
+			if (slot == 1)
+			{
+				m_GraphicsConstants.ubv1.address = gpuAddress;
+				m_GraphicsConstants.ubv1.range = dataSize;
+			}
+			else
+			{
+				m_GraphicsConstants.ubv2.address = gpuAddress;
+				m_GraphicsConstants.ubv2.range = dataSize;
+			}
+		}
+
+		m_GraphicsConstants.needsUpdate = true;
 	}
 
 	void VulkanCommandList::setComputePushConstants(uint32_t slot, const void* data, size_t dataSize)
 	{
+		if (slot == 0)
+		{
+			SE_ASSERT_NOMSG(dataSize <= SE_MAX_PUSH_CONSTANTS * sizeof(uint32_t));
+			memcpy(m_ComputeConstants.ubv0, data, dataSize);
+		}
+		else
+		{
+			SE_ASSERT_NOMSG(slot < SE_MAX_UBV_BINDINGS);
+			VkDeviceAddress gpuAddress = ((VulkanDevice*)m_Device)->allocateUniformBuffer(data, dataSize);
+
+			if (slot == 1)
+			{
+				m_ComputeConstants.ubv1.address = gpuAddress;
+				m_ComputeConstants.ubv1.range = dataSize;
+			}
+			else
+			{
+				m_ComputeConstants.ubv2.address = gpuAddress;
+				m_ComputeConstants.ubv2.range = dataSize;
+			}
+		}
+
+		m_GraphicsConstants.needsUpdate = true;
 	}
 
 	void VulkanCommandList::draw(uint32_t vertexCount, uint32_t instanceCount) {

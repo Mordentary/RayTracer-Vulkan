@@ -824,7 +824,7 @@ namespace rhi::vulkan
 		}
 
 		VkPipelineColorBlendStateCreateInfo createInfo = { VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-		createInfo.attachmentCount = 8;
+		createInfo.attachmentCount = 1;
 		createInfo.pAttachments = vkStates;
 
 		return createInfo;

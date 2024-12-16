@@ -21,6 +21,8 @@ namespace SE
 		uint64_t getFrameID() { return m_Device->getFrameID(); };
 		rhi::Swapchain* getSwapchain() const { return m_Swapchain.get(); }
 		rhi::Texture* getRenderTarget() const { return m_RenderTargetColor.get(); }
+		void uploadTexture(rhi::Texture* texture, const void* data);
+		void uploadBuffer(rhi::Buffer* buffer, uint32_t offset, const void* data, uint32_t data_size);
 	private:
 		Scoped<rhi::Device> m_Device = nullptr;
 		Scoped<rhi::Swapchain> m_Swapchain = nullptr;

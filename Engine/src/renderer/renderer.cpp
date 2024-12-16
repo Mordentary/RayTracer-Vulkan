@@ -1,7 +1,8 @@
 #include"renderer.hpp"
 #include"core/engine.hpp"
 #include"shader_compiler.hpp"
-
+using uint = uint32_t;
+#include"global_constants.hlslI"
 using namespace rhi;
 namespace SE
 {
@@ -13,7 +14,9 @@ namespace SE
 	{
 		Engine::getInstance().getWindow().WindowResizeSignal.disconnect(&Renderer::onWindowResize, this);
 	}
-
+	struct Vertex {
+		glm::vec3 position;
+	};
 	void Renderer::createDevice(rhi::RenderBackend backend, void* window_handle, uint32_t window_width, uint32_t window_height)
 	{
 		m_WindowSize.x = window_width;
@@ -55,7 +58,7 @@ namespace SE
 
 		std::vector<uint8_t> vsBinary;
 		bool vsSuccess = compiler->compile(
-			"triangleShader.hlsl",       // Path to HLSL file
+			"defaultShader.hlsl",       // Path to HLSL file
 			"VSMain",            // Entry point for Vertex Shader
 			rhi::ShaderType::Vertex,
 			{},                   // Defines
@@ -68,7 +71,7 @@ namespace SE
 
 		std::vector<uint8_t> psBinary;
 		bool psSuccess = compiler->compile(
-			"triangleShader.hlsl",       // Path to HLSL file
+			"defaultShader.hlsl",       // Path to HLSL file
 			"PSMain",            // Entry point for Vertex Shader
 			rhi::ShaderType::Pixel,
 			{},                   // Defines
@@ -81,7 +84,7 @@ namespace SE
 
 		ShaderDescription shaderDesc{};
 		shaderDesc.type = ShaderType::Vertex;
-		shaderDesc.file = "shader.hlsl";
+		shaderDesc.file = "defaultShader.hlsl";
 		shaderDesc.entryPoint = "VSMain";
 		Shader* shaderVS = m_Device->createShader(shaderDesc, vsBinary, "TestShaderVS");
 		shaderDesc.type = ShaderType::Pixel;
@@ -94,7 +97,40 @@ namespace SE
 		pipeDesc.renderTargetFormat[0] = Format::R8G8B8A8_UNORM;
 		pipeDesc.depthStencilFormat = Format::D24_UNORM_S8_UINT;
 		m_DefaultPipeline = m_Device->createGraphicsPipelineState(pipeDesc, "TestGraphicsPipeline");
+
+		std::vector<Vertex> triangleVertices = {
+			{ glm::vec3(0.0f,  0.5f, 0.0f) },
+			{ glm::vec3(0.5f, -0.5f, 0.0f) },
+			{ glm::vec3(-0.5f, -0.5f, 0.0f) }
+		};
+
+		uint32_t vertexBufferSize = triangleVertices.size() * sizeof(Vertex);
+		BufferDescription vertexBufferDescription;
+		vertexBufferDescription.memoryType = MemoryType::GpuOnly;
+		vertexBufferDescription.size = vertexBufferSize;
+		vertexBufferDescription.usage = BufferUsageFlags::StructuredBuffer;
+		vertexBufferDescription.stride = sizeof(Vertex);
+		Buffer* vertexBuffer = m_Device->createBuffer(vertexBufferDescription, "VertexBuffer");
+
+		ShaderResourceDescriptorDescription vertexBufferDescriptorDesc;
+		vertexBufferDescriptorDesc.buffer.size = vertexBufferSize;
+		vertexBufferDescriptorDesc.buffer.offset = 0;
+		vertexBufferDescriptorDesc.type = ShaderResourceDescriptorType::StructuredBuffer;
+		Descriptor* vertexBufferDescriptor = m_Device->createShaderResourceDescriptor(vertexBuffer, vertexBufferDescriptorDesc, "VertexBufferDescriptor");
+
+		BufferDescription constantBufferWithIndicesDesc;
+		constantBufferWithIndicesDesc.memoryType = MemoryType::GpuOnly;
+		constantBufferWithIndicesDesc.size = sizeof(SceneConstant);
+		constantBufferWithIndicesDesc.usage = BufferUsageFlags::UniformBuffer;
+		constantBufferWithIndicesDesc.stride = sizeof(SceneConstant);
+		Buffer* constantBuffer = m_Device->createBuffer(constantBufferWithIndicesDesc, "ConstantBufferWithIndices");
+
+		ConstantBufferDescriptorDescription constantBufferDescriptor;
+		constantBufferDescriptor.size = sizeof(SceneConstant);
+		constantBufferDescriptor.offset = 0;
+		Descriptor* sceneConstantBufferDescriptor = m_Device->createConstantBufferDescriptor(constantBuffer, constantBufferDescriptor, "ConstantBufferWithIndicesDescriptor");
 	}
+
 	void Renderer::createRenderTarget(uint32_t renderWidth, uint32_t renderHeight)
 	{
 		Engine::getInstance().getEditor().ViewportResizeSignal.connect(&Renderer::onViewportResize, this);
@@ -118,6 +154,25 @@ namespace SE
 		uploadResources();
 		render();
 		endFrame();
+	}
+	void Renderer::uploadTexture(rhi::Texture* texture, const void* data)
+	{
+	}
+	void Renderer::uploadBuffer(rhi::Buffer* buffer, uint32_t offset, const void* data, uint32_t data_size)
+	{
+		uint32_t frame_index = m_Device->getFrameID() % SE_MAX_FRAMES_IN_FLIGHT;
+
+		StagingBufferAllocator* pAllocator = m_FrameResources[frame_index].stagingBufferAllocator.get();
+		StagingBuffer staging_buffer = pAllocator->allocate(data_size);
+
+		char* dst_data = (char*)staging_buffer.buffer->getCpuAddress() + staging_buffer.offset;
+		memcpy(dst_data, data, data_size);
+
+		BufferUpload upload;
+		upload.buffer = buffer;
+		upload.offset = offset;
+		upload.staging_buffer = staging_buffer;
+		m_PendingBufferUpload.push_back(upload);
 	}
 	void SE::Renderer::onWindowResize(uint32_t width, uint32_t height)
 	{

@@ -31,7 +31,12 @@ namespace rhi::vulkan {
 			stages[1].pName = m_Description.pixelShader->getDescription().entryPoint.c_str();
 		}
 
-		VkPipelineVertexInputStateCreateInfo vertexInput{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+	   VkPipelineVertexInputStateCreateInfo vertexInput{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+		vertexInput.vertexBindingDescriptionCount = 0;         // No vertex bindings
+		vertexInput.pVertexBindingDescriptions = nullptr;
+		vertexInput.vertexAttributeDescriptionCount = 0;     // No vertex attributes
+		vertexInput.pVertexAttributeDescriptions = nullptr;
+	
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 		inputAssembly.topology = toVkPrimitiveTopology(m_Description.primitiveType);
 

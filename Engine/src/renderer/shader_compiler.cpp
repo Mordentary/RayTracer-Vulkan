@@ -133,9 +133,19 @@ bool SE::ShaderCompiler::compile(
 	const rhi::RenderBackend backend = m_pRenderer->getDevice()->getDescription().backend;
 	if (backend == rhi::RenderBackend::Vulkan)
 	{
+		//args.push_back(L"-spirv");
+		//args.push_back(L"-fspv-target-env=vulkan1.3");
+		//args.push_back(L"-fvk-use-dx-layout");
+
 		args.push_back(L"-spirv");
 		args.push_back(L"-fspv-target-env=vulkan1.3");
 		args.push_back(L"-fvk-use-dx-layout");
+		args.push_back(L"-fvk-bind-resource-heap");
+		args.push_back(L"0");
+		args.push_back(L"1");
+		args.push_back(L"-fvk-bind-sampler-heap");
+		args.push_back(L"0");
+		args.push_back(L"2");
 	}
 	else if (backend == rhi::RenderBackend::D3D12)
 	{

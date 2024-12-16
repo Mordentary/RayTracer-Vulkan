@@ -15,6 +15,8 @@ target_include_directories(SingularityEngine
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src/internal
         ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${SHADER_SOURCE_DIR}
+
 )
 
 target_compile_definitions(SingularityEngine PRIVATE SINGULARITY_ENGINE_EXPORTS)
