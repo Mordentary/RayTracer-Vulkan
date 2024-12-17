@@ -98,37 +98,117 @@ namespace SE
 		pipeDesc.depthStencilFormat = Format::D24_UNORM_S8_UINT;
 		m_DefaultPipeline = m_Device->createGraphicsPipelineState(pipeDesc, "TestGraphicsPipeline");
 
-		std::vector<Vertex> triangleVertices = {
-			{ glm::vec3(0.0f,  0.5f, 0.0f) },
-			{ glm::vec3(0.5f, -0.5f, 0.0f) },
-			{ glm::vec3(-0.5f, -0.5f, 0.0f) }
+		std::vector<Vertex> cubeVertices = {
+			// Front Face (+Z)
+			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Right
+			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Right
+
+			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
+			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Right
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Left
+
+			// Back Face (-Z)
+			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Right
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Left
+			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Left
+
+			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Right
+			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Left
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Right
+
+			// Left Face (-X)
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
+			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Front
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Front
+
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Front
+			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Back
+
+			// Right Face (+X)
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Front
+			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Back
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Back
+
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Front
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Back
+			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Front
+
+			// Top Face (+Y)
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Front Left
+			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Front Right
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Back Right
+
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Front Left
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Back Right
+			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Back Left
+
+			// Bottom Face (-Y)
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Back Left
+			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Back Right
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Front Right
+
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Back Left
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Front Right
+			{ glm::vec3(-0.5f, -0.5f,  0.5f) }  // Front Left
 		};
 
-		uint32_t vertexBufferSize = triangleVertices.size() * sizeof(Vertex);
+		// Define rotation parameters
+		float angleDegrees = 35.0f;
+		glm::vec3 axis(1.0f, 1.0f, 0.0f); // Rotate around Y-axis
+
+		// Create the rotation matrix using GLM
+		glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(angleDegrees), axis);
+
+		// Prepare a vector to hold rotated vertices
+		std::vector<Vertex> rotatedCube;
+		rotatedCube.reserve(cubeVertices.size());
+
+		// Use std::transform with a lambda to apply rotation
+		std::transform(cubeVertices.begin(), cubeVertices.end(), std::back_inserter(rotatedCube),
+			[&rotationMatrix](const Vertex& vert) -> Vertex {
+				glm::vec4 pos4(vert.position, 1.0f);        // Convert to 4D for matrix multiplication
+				glm::vec4 rotatedPos = rotationMatrix * pos4; // Apply rotation
+				return Vertex{ glm::vec3(rotatedPos) };      // Convert back to 3D
+			}
+		);
+
+		// Print the rotated positions for verification
+		for (size_t i = 0; i < rotatedCube.size(); i++) {
+			std::cout << "Vertex " << i << ": ("
+				<< rotatedCube[i].position.x << ", "
+				<< rotatedCube[i].position.y << ", "
+				<< rotatedCube[i].position.z << ")\n";
+		}
+
+		uint32_t vertexBufferSize = rotatedCube.size() * sizeof(Vertex);
 		BufferDescription vertexBufferDescription;
 		vertexBufferDescription.memoryType = MemoryType::GpuOnly;
 		vertexBufferDescription.size = vertexBufferSize;
-		vertexBufferDescription.usage = BufferUsageFlags::StructuredBuffer;
+		vertexBufferDescription.usage = BufferUsageFlags::RawBuffer;
 		vertexBufferDescription.stride = sizeof(Vertex);
 		Buffer* vertexBuffer = m_Device->createBuffer(vertexBufferDescription, "VertexBuffer");
+
+		uploadBuffer(vertexBuffer, 0, rotatedCube.data(), vertexBufferSize);
 
 		ShaderResourceDescriptorDescription vertexBufferDescriptorDesc;
 		vertexBufferDescriptorDesc.buffer.size = vertexBufferSize;
 		vertexBufferDescriptorDesc.buffer.offset = 0;
-		vertexBufferDescriptorDesc.type = ShaderResourceDescriptorType::StructuredBuffer;
-		Descriptor* vertexBufferDescriptor = m_Device->createShaderResourceDescriptor(vertexBuffer, vertexBufferDescriptorDesc, "VertexBufferDescriptor");
+		vertexBufferDescriptorDesc.type = ShaderResourceDescriptorType::RawBuffer;
+		vertexBufferDesc = m_Device->createShaderResourceDescriptor(vertexBuffer, vertexBufferDescriptorDesc, "VertexBufferDescriptor");
 
-		BufferDescription constantBufferWithIndicesDesc;
-		constantBufferWithIndicesDesc.memoryType = MemoryType::GpuOnly;
-		constantBufferWithIndicesDesc.size = sizeof(SceneConstant);
-		constantBufferWithIndicesDesc.usage = BufferUsageFlags::UniformBuffer;
-		constantBufferWithIndicesDesc.stride = sizeof(SceneConstant);
-		Buffer* constantBuffer = m_Device->createBuffer(constantBufferWithIndicesDesc, "ConstantBufferWithIndices");
+		//BufferDescription constantBufferWithIndicesDesc;
+		//constantBufferWithIndicesDesc.memoryType = MemoryType::GpuOnly;
+		//constantBufferWithIndicesDesc.size = sizeof(SceneConstant);
+		//constantBufferWithIndicesDesc.usage = BufferUsageFlags::UniformBuffer;
+		//constantBufferWithIndicesDesc.stride = sizeof(SceneConstant);
+		//Buffer* constantBuffer = m_Device->allocate(constantBufferWithIndicesDesc, "ConstantBufferWithIndices");
 
-		ConstantBufferDescriptorDescription constantBufferDescriptor;
-		constantBufferDescriptor.size = sizeof(SceneConstant);
-		constantBufferDescriptor.offset = 0;
-		Descriptor* sceneConstantBufferDescriptor = m_Device->createConstantBufferDescriptor(constantBuffer, constantBufferDescriptor, "ConstantBufferWithIndicesDescriptor");
+		//ConstantBufferDescriptorDescription constantBufferDescriptor;
+		//constantBufferDescriptor.size = sizeof(SceneConstant);
+		//constantBufferDescriptor.offset = 0;
+		//Descriptor* sceneConstantBufferDescriptor = m_Device->createConstantBufferDescriptor(constantBuffer, constantBufferDescriptor, "ConstantBufferWithIndicesDescriptor");
 	}
 
 	void Renderer::createRenderTarget(uint32_t renderWidth, uint32_t renderHeight)
@@ -165,6 +245,7 @@ namespace SE
 		StagingBufferAllocator* pAllocator = m_FrameResources[frame_index].stagingBufferAllocator.get();
 		StagingBuffer staging_buffer = pAllocator->allocate(data_size);
 
+		staging_buffer.buffer->map();
 		char* dst_data = (char*)staging_buffer.buffer->getCpuAddress() + staging_buffer.offset;
 		memcpy(dst_data, data, data_size);
 
@@ -211,7 +292,7 @@ namespace SE
 		//renderPass.depth.readOnly = false;
 		commandList->beginRenderPass(renderPass);
 		commandList->bindPipeline(m_DefaultPipeline);
-		commandList->draw(3, 1);
+		commandList->draw(36, 1);
 		commandList->endRenderPass();
 
 		//renderPass.color[0].texture = presentImage;
@@ -330,6 +411,9 @@ namespace SE
 		uint32_t frameIndex = m_Device->getFrameID() % SE_MAX_FRAMES_IN_FLIGHT;
 		FrameResources& frame = m_FrameResources[frameIndex];
 		CommandList* commandList = frame.commandList.get();
+		SceneConstant scene;
+		scene.vertexDataIndex = vertexBufferDesc->getDescriptorArrayIndex();
+		commandList->setGraphicsPushConstants(2, &scene, sizeof(SceneConstant));
 
 		copyToBackBuffer(commandList);
 	}

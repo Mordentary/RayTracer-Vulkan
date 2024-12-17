@@ -45,6 +45,7 @@ namespace SE
 		uint64_t m_CurrenFrameFenceValue = 0;
 		uint64_t m_CurrentUploadFenceValue = 0;
 		std::array<FrameResources, SE_MAX_FRAMES_IN_FLIGHT> m_FrameResources{};
+		rhi::Descriptor* vertexBufferDesc = nullptr;
 
 		ShaderCompiler* compiler;
 		struct TextureUpload

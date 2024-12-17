@@ -6,6 +6,6 @@ struct SceneConstant
 };
 
 #ifndef __cplusplus
-ConstantBuffer<SceneConstant> SceneCB : register(b2, space0);
+ConstantBuffer<SceneConstant> SceneCB : register(b2);
 
 #endif
