@@ -58,7 +58,7 @@ namespace SE
 
 		std::vector<uint8_t> vsBinary;
 		bool vsSuccess = compiler->compile(
-			"defaultShader.hlsl",       // Path to HLSL file
+			"shaders/defaultShader.hlsl",       // Path to HLSL file
 			"VSMain",            // Entry point for Vertex Shader
 			rhi::ShaderType::Vertex,
 			{},                   // Defines
@@ -71,7 +71,7 @@ namespace SE
 
 		std::vector<uint8_t> psBinary;
 		bool psSuccess = compiler->compile(
-			"defaultShader.hlsl",       // Path to HLSL file
+			"shaders/defaultShader.hlsl",       // Path to HLSL file
 			"PSMain",            // Entry point for Vertex Shader
 			rhi::ShaderType::Pixel,
 			{},                   // Defines
@@ -174,13 +174,6 @@ namespace SE
 			}
 		);
 
-		// Print the rotated positions for verification
-		for (size_t i = 0; i < rotatedCube.size(); i++) {
-			std::cout << "Vertex " << i << ": ("
-				<< rotatedCube[i].position.x << ", "
-				<< rotatedCube[i].position.y << ", "
-				<< rotatedCube[i].position.z << ")\n";
-		}
 
 		uint32_t vertexBufferSize = rotatedCube.size() * sizeof(Vertex);
 		BufferDescription vertexBufferDescription;
@@ -283,7 +276,7 @@ namespace SE
 		commandList->textureBarrier(presentImage, ResourceAccessFlags::Present, ResourceAccessFlags::RenderTarget);
 		rhi::RenderPassDescription renderPass;
 		renderPass.color[0].texture = presentImage;
-		renderPass.color[0].loadOp = RenderPassLoadOp::DontCare;
+		renderPass.color[0].loadOp = RenderPassLoadOp::Clear;
 		//renderPass.depth.texture = m_RenderTargetDepth.get();
 		//renderPass.depth.loadOp = RenderPassLoadOp::DontCare;
 		//renderPass.depth.stencilLoadOp = RenderPassLoadOp::DontCare;
@@ -296,7 +289,7 @@ namespace SE
 		commandList->endRenderPass();
 
 		//renderPass.color[0].texture = presentImage;
-		//renderPass.color[0].loadOp = RenderPassLoadOp::DontCare;
+		renderPass.color[0].loadOp = RenderPassLoadOp::Load;
 		//renderPass.depth.texture = nullptr;
 		commandList->beginRenderPass(renderPass);
 

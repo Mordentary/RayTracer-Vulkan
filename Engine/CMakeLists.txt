@@ -44,12 +44,12 @@ add_custom_command(TARGET CopyEngineResources POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:SingularityEngine>" "$<TARGET_FILE_DIR:SingularityEngine>"
     COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_RUNTIME_DLLS:SingularityEngine> "$<TARGET_FILE_DIR:SingularityEngine>"
     COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:SingularityEngine>/shaders"
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${SHADER_OUTPUT_DIR}" "$<TARGET_FILE_DIR:SingularityEngine>/shaders"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${SHADER_SOURCE_DIR}" "$<TARGET_FILE_DIR:SingularityEngine>/shaders"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${PROJECT_SOURCE_DIR}/assets" "$<TARGET_FILE_DIR:SingularityEngine>/assets"
 )
 
 add_dependencies(SingularityEngine vma)
-add_dependencies(CopyEngineResources SingularityEngine Shaders)
+add_dependencies(CopyEngineResources SingularityEngine)
 
 # Organize targets into folders for cleanliness
 set_target_properties(SingularityEngine PROPERTIES FOLDER "Engine")
