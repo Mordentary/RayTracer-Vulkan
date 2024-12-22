@@ -86,10 +86,10 @@ namespace SE
 		shaderDesc.type = ShaderType::Vertex;
 		shaderDesc.file = "defaultShader.hlsl";
 		shaderDesc.entryPoint = "VSMain";
-		Shader* shaderVS = m_Device->createShader(shaderDesc, vsBinary, "TestShaderVS");
+		IShader* shaderVS = m_Device->createShader(shaderDesc, vsBinary, "TestShaderVS");
 		shaderDesc.type = ShaderType::Pixel;
 		shaderDesc.entryPoint = "PSMain";
-		Shader* shaderPS = m_Device->createShader(shaderDesc, psBinary, "TestShaderPS");
+		IShader* shaderPS = m_Device->createShader(shaderDesc, psBinary, "TestShaderPS");
 
 		GraphicsPipelineDescription pipeDesc{};
 		pipeDesc.vertexShader = shaderVS;
@@ -174,14 +174,13 @@ namespace SE
 			}
 		);
 
-
 		uint32_t vertexBufferSize = rotatedCube.size() * sizeof(Vertex);
 		BufferDescription vertexBufferDescription;
 		vertexBufferDescription.memoryType = MemoryType::GpuOnly;
 		vertexBufferDescription.size = vertexBufferSize;
 		vertexBufferDescription.usage = BufferUsageFlags::RawBuffer;
 		vertexBufferDescription.stride = sizeof(Vertex);
-		Buffer* vertexBuffer = m_Device->createBuffer(vertexBufferDescription, "VertexBuffer");
+		IBuffer* vertexBuffer = m_Device->createBuffer(vertexBufferDescription, "VertexBuffer");
 
 		uploadBuffer(vertexBuffer, 0, rotatedCube.data(), vertexBufferSize);
 
@@ -228,10 +227,10 @@ namespace SE
 		render();
 		endFrame();
 	}
-	void Renderer::uploadTexture(rhi::Texture* texture, const void* data)
+	void Renderer::uploadTexture(rhi::ITexture* texture, const void* data)
 	{
 	}
-	void Renderer::uploadBuffer(rhi::Buffer* buffer, uint32_t offset, const void* data, uint32_t data_size)
+	void Renderer::uploadBuffer(rhi::IBuffer* buffer, uint32_t offset, const void* data, uint32_t data_size)
 	{
 		uint32_t frame_index = m_Device->getFrameID() % SE_MAX_FRAMES_IN_FLIGHT;
 
@@ -267,12 +266,12 @@ namespace SE
 		}
 	}
 
-	void Renderer::copyToBackBuffer(rhi::CommandList* commandList)
+	void Renderer::copyToBackBuffer(rhi::ICommandList* commandList)
 	{
 		m_Swapchain->acquireNextImage();
 		//commandList->textureBarrier(m_RenderTargetColor.get(), ResourceAccessFlags::Discard, ResourceAccessFlags::RenderTarget);
 
-		Texture* presentImage = m_Swapchain->getCurrentSwapchainImage();
+		ITexture* presentImage = m_Swapchain->getCurrentSwapchainImage();
 		commandList->textureBarrier(presentImage, ResourceAccessFlags::Present, ResourceAccessFlags::RenderTarget);
 		rhi::RenderPassDescription renderPass;
 		renderPass.color[0].texture = presentImage;
@@ -320,11 +319,11 @@ namespace SE
 
 		m_Device->beginFrame();
 
-		rhi::CommandList* pCommandList = frame.commandList.get();
+		rhi::ICommandList* pCommandList = frame.commandList.get();
 		pCommandList->resetAllocator();
 		pCommandList->begin();
 
-		rhi::CommandList* pComputeCommandList = frame.computeCommandList.get();
+		rhi::ICommandList* pComputeCommandList = frame.computeCommandList.get();
 		pComputeCommandList->resetAllocator();
 		pComputeCommandList->begin();
 	}
@@ -334,10 +333,10 @@ namespace SE
 		uint32_t frameIndex = m_Device->getFrameID() % SE_MAX_FRAMES_IN_FLIGHT;
 		FrameResources& frame = m_FrameResources[frameIndex];
 
-		rhi::CommandList* pComputeCommandList = frame.computeCommandList.get();
+		rhi::ICommandList* pComputeCommandList = frame.computeCommandList.get();
 		pComputeCommandList->end();
 
-		rhi::CommandList* pCommandList = frame.commandList.get();
+		rhi::ICommandList* pCommandList = frame.commandList.get();
 		pCommandList->end();
 
 		frame.frameFenceValue = ++m_CurrenFrameFenceValue;
@@ -359,7 +358,7 @@ namespace SE
 		uint32_t frame_index = m_Device->getFrameID() % SE_MAX_FRAMES_IN_FLIGHT;
 
 		FrameResources& currentFrame = m_FrameResources[frame_index];
-		rhi::CommandList* uploadCommandList = currentFrame.uploadCommandList.get();
+		rhi::ICommandList* uploadCommandList = currentFrame.uploadCommandList.get();
 		uploadCommandList->resetAllocator();
 		uploadCommandList->begin();
 
@@ -383,7 +382,7 @@ namespace SE
 		uploadCommandList->signal(m_UploadFence.get(), ++m_CurrentUploadFenceValue);
 		uploadCommandList->submit();
 
-		CommandList* commandList = currentFrame.commandList.get();
+		ICommandList* commandList = currentFrame.commandList.get();
 		commandList->wait(m_UploadFence.get(), m_CurrentUploadFenceValue);
 
 		if (m_Device->getDescription().backend == rhi::RenderBackend::Vulkan)
@@ -403,7 +402,7 @@ namespace SE
 	{
 		uint32_t frameIndex = m_Device->getFrameID() % SE_MAX_FRAMES_IN_FLIGHT;
 		FrameResources& frame = m_FrameResources[frameIndex];
-		CommandList* commandList = frame.commandList.get();
+		ICommandList* commandList = frame.commandList.get();
 		SceneConstant scene;
 		scene.vertexDataIndex = vertexBufferDesc->getDescriptorArrayIndex();
 		commandList->setGraphicsPushConstants(2, &scene, sizeof(SceneConstant));

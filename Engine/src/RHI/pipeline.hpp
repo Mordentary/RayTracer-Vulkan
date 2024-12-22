@@ -4,7 +4,7 @@
 
 namespace rhi
 {
-	class Pipeline : public Resource
+	class IPipelineState : public IResource
 	{
 	public:
 		PipelineType getType() const { return m_Type; }

@@ -3,7 +3,7 @@
 #include"vulkan_texture.hpp"
 namespace rhi::vulkan
 {
-	VulkanShaderResourceDescriptor::VulkanShaderResourceDescriptor(VulkanDevice* device, Resource* resource,
+	VulkanShaderResourceDescriptor::VulkanShaderResourceDescriptor(VulkanDevice* device, IResource* resource,
 		const ShaderResourceDescriptorDescription& desc, const std::string& name) {
 		m_Device = device;
 		m_DebugName = name;
@@ -79,13 +79,13 @@ namespace rhi::vulkan
 			break;
 		}
 		case ShaderResourceDescriptorType::StructuredBuffer: {
-			const BufferDescription& bufferDesc = ((Buffer*)m_Resource)->getDescription();
+			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::StructuredBuffer));
 			assert(m_Description.format == Format::Unknown);
 			assert(m_Description.buffer.offset % bufferDesc.stride == 0);
 			assert(m_Description.buffer.size % bufferDesc.stride == 0);
 
-			bufferInfo.address = ((Buffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
+			bufferInfo.address = ((IBuffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
 			bufferInfo.range = m_Description.buffer.size;
 
 			descriptorInfo.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -95,12 +95,12 @@ namespace rhi::vulkan
 			break;
 		}
 		case ShaderResourceDescriptorType::FormattedBuffer: {
-			const BufferDescription& bufferDesc = ((Buffer*)m_Resource)->getDescription();
+			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::FormattedBuffer));
 			assert(m_Description.buffer.offset % bufferDesc.stride == 0);
 			assert(m_Description.buffer.size % bufferDesc.stride == 0);
 
-			bufferInfo.address = ((Buffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
+			bufferInfo.address = ((IBuffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
 			bufferInfo.range = m_Description.buffer.size;
 			bufferInfo.format = toVkFormat(m_Description.format);
 
@@ -111,13 +111,13 @@ namespace rhi::vulkan
 			break;
 		}
 		case ShaderResourceDescriptorType::RawBuffer: {
-			const BufferDescription& bufferDesc = ((Buffer*)m_Resource)->getDescription();
+			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::RawBuffer));
 			assert(bufferDesc.stride % 4 == 0);
 			assert(m_Description.buffer.offset % 4 == 0);
 			assert(m_Description.buffer.size % 4 == 0);
 
-			bufferInfo.address = ((Buffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
+			bufferInfo.address = ((IBuffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
 			bufferInfo.range = m_Description.buffer.size;
 
 			descriptorInfo.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -136,7 +136,7 @@ namespace rhi::vulkan
 		return true;
 	}
 
-	VulkanUnorderedAccessDescriptor::VulkanUnorderedAccessDescriptor(VulkanDevice* device, Resource* resource,
+	VulkanUnorderedAccessDescriptor::VulkanUnorderedAccessDescriptor(VulkanDevice* device, IResource* resource,
 		const UnorderedAccessDescriptorDescription& desc, const std::string& name) {
 		m_Device = device;
 		m_DebugName = name;
@@ -170,7 +170,7 @@ namespace rhi::vulkan
 
 		VkImageViewCreateInfo imageViewCreateInfo = { VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO };
 		if (m_Resource && m_Resource->isTexture()) {
-			const TextureDescription& textureDesc = ((Texture*)m_Resource)->getDescription();
+			const TextureDescription& textureDesc = ((ITexture*)m_Resource)->getDescription();
 			assert(anySet(textureDesc.usage, TextureUsageFlags::ShaderStorage));
 
 			imageViewCreateInfo.pNext = &imageViewUsageInfo;
@@ -206,14 +206,14 @@ namespace rhi::vulkan
 			break;
 		}
 		case UnorderedAccessDescriptorType::StructuredBuffer: {
-			const BufferDescription& bufferDesc = ((Buffer*)m_Resource)->getDescription();
+			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::StructuredBuffer));
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::StorageBuffer));
 			assert(m_Description.format == Format::Unknown);
 			assert(m_Description.buffer.offset % bufferDesc.stride == 0);
 			assert(m_Description.buffer.size % bufferDesc.stride == 0);
 
-			bufferInfo.address = ((Buffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
+			bufferInfo.address = ((IBuffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
 			bufferInfo.range = m_Description.buffer.size;
 
 			descriptorInfo.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -223,13 +223,13 @@ namespace rhi::vulkan
 			break;
 		}
 		case UnorderedAccessDescriptorType::FormattedBuffer: {
-			const BufferDescription& bufferDesc = ((Buffer*)m_Resource)->getDescription();
+			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::FormattedBuffer));
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::StorageBuffer));
 			assert(m_Description.buffer.offset % bufferDesc.stride == 0);
 			assert(m_Description.buffer.size % bufferDesc.stride == 0);
 
-			bufferInfo.address = ((Buffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
+			bufferInfo.address = ((IBuffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
 			bufferInfo.range = m_Description.buffer.size;
 			bufferInfo.format = toVkFormat(m_Description.format);
 
@@ -240,14 +240,14 @@ namespace rhi::vulkan
 			break;
 		}
 		case UnorderedAccessDescriptorType::RawBuffer: {
-			const BufferDescription& bufferDesc = ((Buffer*)m_Resource)->getDescription();
+			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::RawBuffer));
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::StorageBuffer));
 			assert(bufferDesc.stride % 4 == 0);
 			assert(m_Description.buffer.offset % 4 == 0);
 			assert(m_Description.buffer.size % 4 == 0);
 
-			bufferInfo.address = ((Buffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
+			bufferInfo.address = ((IBuffer*)m_Resource)->getGpuAddress() + m_Description.buffer.offset;
 			bufferInfo.range = m_Description.buffer.size;
 
 			descriptorInfo.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -268,7 +268,7 @@ namespace rhi::vulkan
 		return true;
 	}
 
-	VulkanConstantBufferDescriptor::VulkanConstantBufferDescriptor(VulkanDevice* device, Buffer* buffer,
+	VulkanConstantBufferDescriptor::VulkanConstantBufferDescriptor(VulkanDevice* device, IBuffer* buffer,
 		const ConstantBufferDescriptorDescription& desc, const std::string& name) {
 		m_Device = device;
 		m_DebugName = name;

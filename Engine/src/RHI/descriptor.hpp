@@ -2,7 +2,7 @@
 #include "resource.hpp"
 
 namespace rhi {
-	class Descriptor : public Resource
+	class IDescriptor : public IResource
 	{
 	public:
 		virtual uint32_t getDescriptorArrayIndex() const = 0;

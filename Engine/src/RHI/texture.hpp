@@ -4,9 +4,9 @@
 
 namespace rhi {
 	// Resource description structures
-	class Texture : public Resource {
+	class ITexture : public IResource {
 	public:
-		virtual ~Texture() = default;
+		virtual ~ITexture() = default;
 		const TextureDescription& getDescription() const { return m_Description; };
 	protected:
 		TextureDescription m_Description{};

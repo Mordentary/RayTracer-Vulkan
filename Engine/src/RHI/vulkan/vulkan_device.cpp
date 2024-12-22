@@ -122,7 +122,7 @@ namespace rhi::vulkan {
 		return m_ConstantBufferAllocators[index].get();
 	}
 
-	void VulkanDevice::enqueueDefaultLayoutTransition(Texture* texture) {
+	void VulkanDevice::enqueueDefaultLayoutTransition(ITexture* texture) {
 		const TextureDescription& desc = texture->getDescription();
 
 		ResourceAccessFlags accessFlags = ResourceAccessFlags::None;
@@ -160,8 +160,8 @@ namespace rhi::vulkan {
 		}
 	}
 
-	void VulkanDevice::cancelLayoutTransition(Texture* texture) {
-		auto removeTransition = [texture](std::vector<std::pair<Texture*, ResourceAccessFlags>>& transitions) {
+	void VulkanDevice::cancelLayoutTransition(ITexture* texture) {
+		auto removeTransition = [texture](std::vector<std::pair<ITexture*, ResourceAccessFlags>>& transitions) {
 			transitions.erase(std::remove_if(transitions.begin(), transitions.end(),
 				[texture](const auto& pair) { return pair.first == texture; }), transitions.end());
 			};
@@ -228,8 +228,8 @@ namespace rhi::vulkan {
 
 		for (size_t i = 0; i < SE::SE_MAX_FRAMES_IN_FLIGHT; ++i)
 		{
-			m_TransitionCopyCommandList[i] = SE::Scoped<CommandList>(createCommandList(CommandType::Copy, "Transition CommandList[Transfer]"));
-			m_TransitionGraphicsCommandList[i] = SE::Scoped<CommandList>(createCommandList(CommandType::Graphics, "Transition CommandList[Graphics]"));
+			m_TransitionCopyCommandList[i] = SE::Scoped<ICommandList>(createCommandList(CommandType::Copy, "Transition CommandList[Transfer]"));
+			m_TransitionGraphicsCommandList[i] = SE::Scoped<ICommandList>(createCommandList(CommandType::Graphics, "Transition CommandList[Graphics]"));
 			m_ConstantBufferAllocators[i] = SE::CreateScoped<VulkanConstantBufferAllocator>(this, 8 * 1024 * 1024);
 		}
 
@@ -527,7 +527,7 @@ namespace rhi::vulkan {
 		vkDestroyInstance(m_Instance, nullptr);
 	}
 
-	Buffer* VulkanDevice::createBuffer(const BufferDescription& desc, const std::string& name) {
+	IBuffer* VulkanDevice::createBuffer(const BufferDescription& desc, const std::string& name) {
 		VulkanBuffer* buffer = new VulkanBuffer(this, desc, name);
 		if (!buffer->create())
 		{
@@ -537,7 +537,7 @@ namespace rhi::vulkan {
 		return buffer;
 	}
 
-	Texture* VulkanDevice::createTexture(const TextureDescription& desc, const std::string& name) {
+	ITexture* VulkanDevice::createTexture(const TextureDescription& desc, const std::string& name) {
 		VulkanTexture* texture = new VulkanTexture(this, desc, name);
 		if (!texture->create())
 		{
@@ -547,7 +547,7 @@ namespace rhi::vulkan {
 		return texture;
 	}
 
-	Shader* VulkanDevice::createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name)
+	IShader* VulkanDevice::createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name)
 	{
 		VulkanShader* shader = new VulkanShader(this, desc, name);
 		if (!shader->create(data))
@@ -558,9 +558,9 @@ namespace rhi::vulkan {
 		return shader;
 	}
 
-	Pipeline* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name)
+	IPipelineState* VulkanDevice::createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name)
 	{
-		VulkanGraphicsPipeline* pipeline = new VulkanGraphicsPipeline(this, desc, name);
+		VulkanGraphicsPipelineState* pipeline = new VulkanGraphicsPipelineState(this, desc, name);
 		if (!pipeline->create())
 		{
 			delete pipeline;
@@ -569,9 +569,9 @@ namespace rhi::vulkan {
 		return pipeline;
 	}
 
-	Pipeline* VulkanDevice::createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name)
+	IPipelineState* VulkanDevice::createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name)
 	{
-		VulkanComputePipeline* pipeline = new VulkanComputePipeline(this, desc, name);
+		VulkanComputePipelineState* pipeline = new VulkanComputePipelineState(this, desc, name);
 		if (!pipeline->create())
 		{
 			delete pipeline;
@@ -579,7 +579,7 @@ namespace rhi::vulkan {
 		}
 		return pipeline;
 	}
-	Swapchain* VulkanDevice::createSwapchain(const SwapchainDescription& desc, const std::string& name) {
+	ISwapchain* VulkanDevice::createSwapchain(const SwapchainDescription& desc, const std::string& name) {
 		VulkanSwapchain* swapchain = new VulkanSwapchain(this, desc, name);
 		if (!swapchain->create())
 		{
@@ -589,7 +589,7 @@ namespace rhi::vulkan {
 		return swapchain;
 	}
 
-	CommandList* VulkanDevice::createCommandList(CommandType type, const std::string& name) {
+	ICommandList* VulkanDevice::createCommandList(CommandType type, const std::string& name) {
 		VulkanCommandList* commandList = new VulkanCommandList(this, type, name);
 		if (!commandList->create())
 		{
@@ -598,7 +598,7 @@ namespace rhi::vulkan {
 		}
 		return commandList;
 	}
-	Fence* VulkanDevice::createFence(const std::string& name) {
+	IFence* VulkanDevice::createFence(const std::string& name) {
 		VulkanFence* fence = new VulkanFence(this, name);
 		if (!fence->create())
 		{
@@ -608,7 +608,7 @@ namespace rhi::vulkan {
 		return fence;
 	}
 
-	Descriptor* VulkanDevice::createShaderResourceDescriptor(Resource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name)
+	IDescriptor* VulkanDevice::createShaderResourceDescriptor(IResource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name)
 	{
 		VulkanShaderResourceDescriptor* resourceDescriptor = new VulkanShaderResourceDescriptor(this, resource, desc, name);
 		if (!resourceDescriptor->create())
@@ -619,7 +619,7 @@ namespace rhi::vulkan {
 		return resourceDescriptor;
 	}
 
-	Descriptor* VulkanDevice::createUnorderedAccessDescriptor(Resource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name)
+	IDescriptor* VulkanDevice::createUnorderedAccessDescriptor(IResource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name)
 	{
 		VulkanUnorderedAccessDescriptor* storageDescriptor = new VulkanUnorderedAccessDescriptor(this, resource, desc, name);
 		if (!storageDescriptor->create())
@@ -630,7 +630,7 @@ namespace rhi::vulkan {
 		return storageDescriptor;
 	}
 
-	Descriptor* VulkanDevice::createConstantBufferDescriptor(Buffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name)
+	IDescriptor* VulkanDevice::createConstantBufferDescriptor(IBuffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name)
 	{
 		VulkanConstantBufferDescriptor* uniformDescriptor = new VulkanConstantBufferDescriptor(this, buffer, desc, name);
 		if (!uniformDescriptor->create())
@@ -641,7 +641,7 @@ namespace rhi::vulkan {
 		return uniformDescriptor;
 	}
 
-	Descriptor* VulkanDevice::createSampler(const SamplerDescription& desc, const std::string& name)
+	IDescriptor* VulkanDevice::createSampler(const SamplerDescription& desc, const std::string& name)
 	{
 		VulkanSamplerDescriptor* samplerDescriptor = new VulkanSamplerDescriptor(this, desc, name);
 		if (!samplerDescriptor->create())

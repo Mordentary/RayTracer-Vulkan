@@ -17,7 +17,7 @@
 
 namespace rhi::vulkan
 {
-	class VulkanDevice final : public rhi::Device {
+	class VulkanDevice final : public rhi::IDevice {
 	public:
 		VulkanDevice(const DeviceDescription& desc);
 		~VulkanDevice();
@@ -27,18 +27,18 @@ namespace rhi::vulkan
 		void beginFrame() override;
 		void endFrame() override;
 
-		virtual CommandList* createCommandList(CommandType type, const std::string& name) override;
-		virtual Swapchain* createSwapchain(const SwapchainDescription& desc, const std::string& name) override;
-		virtual Fence* createFence(const std::string& name) override;
-		virtual Buffer* createBuffer(const BufferDescription& desc, const std::string& name) override;
-		virtual Texture* createTexture(const TextureDescription& desc, const std::string& name) override;
-		virtual Shader* createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name) override;
-		virtual Pipeline* createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name) override;
-		virtual Pipeline* createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name) override;
-		virtual Descriptor* createShaderResourceDescriptor(Resource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name) override;
-		virtual Descriptor* createUnorderedAccessDescriptor(Resource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name) override;
-		virtual Descriptor* createConstantBufferDescriptor(Buffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name) override;
-		virtual Descriptor* createSampler(const SamplerDescription& desc, const std::string& name) override;
+		virtual ICommandList* createCommandList(CommandType type, const std::string& name) override;
+		virtual ISwapchain* createSwapchain(const SwapchainDescription& desc, const std::string& name) override;
+		virtual IFence* createFence(const std::string& name) override;
+		virtual IBuffer* createBuffer(const BufferDescription& desc, const std::string& name) override;
+		virtual ITexture* createTexture(const TextureDescription& desc, const std::string& name) override;
+		virtual IShader* createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name) override;
+		virtual IPipelineState* createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name) override;
+		virtual IPipelineState* createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name) override;
+		virtual IDescriptor* createShaderResourceDescriptor(IResource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name) override;
+		virtual IDescriptor* createUnorderedAccessDescriptor(IResource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name) override;
+		virtual IDescriptor* createConstantBufferDescriptor(IBuffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name) override;
+		virtual IDescriptor* createSampler(const SamplerDescription& desc, const std::string& name) override;
 
 		//Descriptors
 		uint32_t allocateResourceDescriptor(void** descriptor);
@@ -71,8 +71,8 @@ namespace rhi::vulkan
 		VulkanDescriptorAllocator* getSamplerDescriptorAllocator() const { return m_SamplerDescriptorAllocator.get(); }
 		const VkPhysicalDeviceDescriptorBufferPropertiesEXT& getDescriptorBufferProperties() const { return m_DescriptorBufferProperties; }
 
-		void enqueueDefaultLayoutTransition(Texture* texture);
-		void cancelLayoutTransition(Texture* texture);
+		void enqueueDefaultLayoutTransition(ITexture* texture);
+		void cancelLayoutTransition(ITexture* texture);
 		void flushLayoutTransition(CommandType type);
 	private:
 		VulkanDevice() = default;
@@ -103,10 +103,10 @@ namespace rhi::vulkan
 		VkQueue m_CopyQueue = VK_NULL_HANDLE;
 
 		SE::Scoped<VulkanDeletionQueue> m_DeletionQueue = nullptr;
-		SE::Scoped<CommandList> m_TransitionCopyCommandList[SE::SE_MAX_FRAMES_IN_FLIGHT] = {};
-		SE::Scoped<CommandList> m_TransitionGraphicsCommandList[SE::SE_MAX_FRAMES_IN_FLIGHT] = {};
-		std::vector<std::pair<Texture*, ResourceAccessFlags>> m_PendingGraphicsTransitions;
-		std::vector<std::pair<Texture*, ResourceAccessFlags>> m_PendingCopyTransitions;
+		SE::Scoped<ICommandList> m_TransitionCopyCommandList[SE::SE_MAX_FRAMES_IN_FLIGHT] = {};
+		SE::Scoped<ICommandList> m_TransitionGraphicsCommandList[SE::SE_MAX_FRAMES_IN_FLIGHT] = {};
+		std::vector<std::pair<ITexture*, ResourceAccessFlags>> m_PendingGraphicsTransitions;
+		std::vector<std::pair<ITexture*, ResourceAccessFlags>> m_PendingCopyTransitions;
 	};
 	template<typename T>
 	void VulkanDevice::enqueueDeletion(T objectHandle)

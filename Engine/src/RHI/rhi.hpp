@@ -13,5 +13,5 @@
 
 namespace rhi {
 	// Device creation function
-	SE::Scoped<Device> createDevice(const DeviceDescription& desc);
+	SE::Scoped<IDevice> createDevice(const DeviceDescription& desc);
 }

@@ -201,7 +201,7 @@ namespace rhi::vulkan {
 		return m_PresentSemaphores[m_frameSemaphoreIndex];
 	}
 
-	Texture* VulkanSwapchain::getCurrentSwapchainImage() {
+	ITexture* VulkanSwapchain::getCurrentSwapchainImage() {
 		return m_SwapchainImages[m_CurrentSwapchainImage].get();
 	}
 

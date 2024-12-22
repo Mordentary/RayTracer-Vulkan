@@ -3,9 +3,9 @@
 #include "types.hpp"
 
 namespace rhi {
-	class Buffer : public Resource {
+	class IBuffer : public IResource {
 	public:
-		virtual ~Buffer() = default;
+		virtual ~IBuffer() = default;
 
 		// Memory mapping
 		virtual void* map() = 0;

@@ -7,7 +7,7 @@
 
 namespace rhi::vulkan
 {
-	class VulkanTexture : public Texture
+	class VulkanTexture : public ITexture
 	{
 	public:
 		VulkanTexture(VulkanDevice* device, const TextureDescription& desc, const std::string& name);

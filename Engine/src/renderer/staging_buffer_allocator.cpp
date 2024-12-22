@@ -52,7 +52,7 @@ namespace SE
 		rhi::BufferDescription desc;
 		desc.size = BUFFER_SIZE;
 		desc.memoryType = rhi::MemoryType::CpuOnly;
-		rhi::Buffer* buffer = m_Renderer->getDevice()->createBuffer(desc, "StagingBufferAllocator::m_pBuffer");
-		m_pBuffers.push_back(Scoped<rhi::Buffer>(buffer));
+		rhi::IBuffer* buffer = m_Renderer->getDevice()->createBuffer(desc, "StagingBufferAllocator::m_pBuffer");
+		m_pBuffers.push_back(Scoped<rhi::IBuffer>(buffer));
 	}
 }

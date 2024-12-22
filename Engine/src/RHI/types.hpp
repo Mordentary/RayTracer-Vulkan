@@ -9,8 +9,8 @@ namespace SE
 	static const uint32_t SE_MAX_FRAMES_IN_FLIGHT = 3;//For anyone
 }
 namespace rhi {
-	class Shader;
-	class Texture;
+	class IShader;
+	class ITexture;
 
 	// Constants and Static Values
 	static const uint32_t SE_MAX_RESOURCE_DESCRIPTOR_COUNT = 65536;
@@ -272,7 +272,7 @@ namespace rhi {
 
 	// Structs
 	struct RenderPassColorAttachment {
-		Texture* texture = nullptr;
+		ITexture* texture = nullptr;
 		uint32_t mipSlice = 0;
 		uint32_t arraySlice = 0;
 		RenderPassLoadOp loadOp = RenderPassLoadOp::Load;
@@ -281,7 +281,7 @@ namespace rhi {
 	};
 
 	struct RenderPassDepthAttachment {
-		Texture* texture = nullptr;
+		ITexture* texture = nullptr;
 		uint32_t mipSlice = 0;
 		uint32_t arraySlice = 0;
 		RenderPassLoadOp loadOp = RenderPassLoadOp::Load;
@@ -348,8 +348,8 @@ namespace rhi {
 	};
 
 	struct GraphicsPipelineDescription {
-		Shader* vertexShader = nullptr;
-		Shader* pixelShader = nullptr;
+		IShader* vertexShader = nullptr;
+		IShader* pixelShader = nullptr;
 		Rasterizer rasterizer;
 		DepthStencil depthStencil;
 		Blend blend[8];
@@ -359,7 +359,7 @@ namespace rhi {
 	};
 
 	struct ComputePipelineDescription {
-		Shader* computeShader = nullptr;
+		IShader* computeShader = nullptr;
 	};
 
 	// Bit Flags and Operators

@@ -4,11 +4,11 @@
 #include <cstdint>
 
 namespace rhi {
-	class Texture;
+	class ITexture;
 
-	class Swapchain : public Resource {
+	class ISwapchain : public IResource {
 	public:
-		virtual Texture* getCurrentSwapchainImage() = 0;
+		virtual ITexture* getCurrentSwapchainImage() = 0;
 		virtual bool acquireNextImage() = 0;
 		virtual bool resize(uint32_t width, uint32_t height) = 0;
 		virtual void setVSync(bool enabled) = 0;

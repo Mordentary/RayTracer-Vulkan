@@ -9,24 +9,24 @@ namespace rhi::vulkan {
 	class Device;
 	class VulkanDevice;
 
-	class VulkanShaderResourceDescriptor : public Descriptor {
+	class VulkanShaderResourceDescriptor : public IDescriptor {
 	public:
-		VulkanShaderResourceDescriptor(VulkanDevice* device, Resource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name);
+		VulkanShaderResourceDescriptor(VulkanDevice* device, IResource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name);
 		~VulkanShaderResourceDescriptor();
 		bool create();
 		virtual void* getHandle() const override { return m_Resource->getHandle(); }
 		virtual uint32_t getDescriptorArrayIndex() const override { return m_HeapIndex; }
 
 	private:
-		Resource* m_Resource = nullptr;
+		IResource* m_Resource = nullptr;
 		ShaderResourceDescriptorDescription m_Description = {};
 		VkImageView m_ImageView = VK_NULL_HANDLE;
 		uint32_t m_HeapIndex = RHI_INVALID_RESOURCE;
 	};
 
-	class VulkanUnorderedAccessDescriptor : public Descriptor {
+	class VulkanUnorderedAccessDescriptor : public IDescriptor {
 	public:
-		VulkanUnorderedAccessDescriptor(VulkanDevice* device, Resource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name);
+		VulkanUnorderedAccessDescriptor(VulkanDevice* device, IResource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name);
 		~VulkanUnorderedAccessDescriptor();
 		bool create();
 		const UnorderedAccessDescriptorDescription& getDescription() const { return m_Description; }
@@ -34,17 +34,17 @@ namespace rhi::vulkan {
 		virtual uint32_t getDescriptorArrayIndex() const override { return m_HeapIndex; }
 
 	private:
-		Resource* m_Resource = nullptr;
+		IResource* m_Resource = nullptr;
 		UnorderedAccessDescriptorDescription m_Description = {};
 		VkImageView m_ImageView = VK_NULL_HANDLE;
 		VkBufferView m_BufferView = VK_NULL_HANDLE; // For storage buffers.
 		uint32_t m_HeapIndex = RHI_INVALID_RESOURCE;
 	};
 
-	class VulkanConstantBufferDescriptor : public Descriptor
+	class VulkanConstantBufferDescriptor : public IDescriptor
 	{
 	public:
-		VulkanConstantBufferDescriptor(VulkanDevice* pDevice, Buffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name);
+		VulkanConstantBufferDescriptor(VulkanDevice* pDevice, IBuffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name);
 		~VulkanConstantBufferDescriptor();
 
 		bool create();
@@ -53,12 +53,12 @@ namespace rhi::vulkan {
 		virtual uint32_t getDescriptorArrayIndex() const override { return m_HeapIndex; }
 
 	private:
-		Buffer* m_Buffer = nullptr;
+		IBuffer* m_Buffer = nullptr;
 		ConstantBufferDescriptorDescription m_Description = {};
 		uint32_t m_HeapIndex = RHI_INVALID_RESOURCE;
 	};
 
-	class VulkanSamplerDescriptor final : public Descriptor {
+	class VulkanSamplerDescriptor final : public IDescriptor {
 	public:
 		VulkanSamplerDescriptor(VulkanDevice* device, const SamplerDescription& desc, const std::string& name);
 		~VulkanSamplerDescriptor();

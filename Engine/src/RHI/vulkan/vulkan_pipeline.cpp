@@ -3,18 +3,18 @@
 #include "vulkan_shader.hpp"
 
 namespace rhi::vulkan {
-	VulkanGraphicsPipeline::VulkanGraphicsPipeline(VulkanDevice* device, const GraphicsPipelineDescription& desc, const std::string& name) {
+	VulkanGraphicsPipelineState::VulkanGraphicsPipelineState(VulkanDevice* device, const GraphicsPipelineDescription& desc, const std::string& name) {
 		m_Device = device;
 		m_DebugName = name;
 		m_Description = desc;
 		m_Type = PipelineType::Graphics;
 	}
 
-	VulkanGraphicsPipeline::~VulkanGraphicsPipeline() {
+	VulkanGraphicsPipelineState::~VulkanGraphicsPipelineState() {
 		((VulkanDevice*)(m_Device))->enqueueDeletion(m_Pipeline);
 	}
 
-	bool VulkanGraphicsPipeline::create() {
+	bool VulkanGraphicsPipelineState::create() {
 		if (m_Pipeline)
 			((VulkanDevice*)(m_Device))->enqueueDeletion(m_Pipeline);
 
@@ -31,12 +31,12 @@ namespace rhi::vulkan {
 			stages[1].pName = m_Description.pixelShader->getDescription().entryPoint.c_str();
 		}
 
-	   VkPipelineVertexInputStateCreateInfo vertexInput{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+		VkPipelineVertexInputStateCreateInfo vertexInput{ VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 		vertexInput.vertexBindingDescriptionCount = 0;         // No vertex bindings
 		vertexInput.pVertexBindingDescriptions = nullptr;
 		vertexInput.vertexAttributeDescriptionCount = 0;     // No vertex attributes
 		vertexInput.pVertexAttributeDescriptions = nullptr;
-	
+
 		VkPipelineInputAssemblyStateCreateInfo inputAssembly{ VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 		inputAssembly.topology = toVkPrimitiveTopology(m_Description.primitiveType);
 
@@ -90,18 +90,18 @@ namespace rhi::vulkan {
 		return true;
 	}
 
-	VulkanComputePipeline::VulkanComputePipeline(VulkanDevice* device, const ComputePipelineDescription& desc, const std::string& name) {
+	VulkanComputePipelineState::VulkanComputePipelineState(VulkanDevice* device, const ComputePipelineDescription& desc, const std::string& name) {
 		m_Device = device;
 		m_DebugName = name;
 		m_Description = desc;
 		m_Type = PipelineType::Compute;
 	}
 
-	VulkanComputePipeline::~VulkanComputePipeline() {
+	VulkanComputePipelineState::~VulkanComputePipelineState() {
 		((VulkanDevice*)(m_Device))->enqueueDeletion(m_Pipeline);
 	}
 
-	bool VulkanComputePipeline::create() {
+	bool VulkanComputePipelineState::create() {
 		auto device = ((VulkanDevice*)(m_Device));
 		if (m_Pipeline)
 			device->enqueueDeletion(m_Pipeline);

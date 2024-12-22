@@ -4,7 +4,7 @@
 namespace rhi::vulkan {
 	class VulkanDevice;
 
-	class VulkanBuffer final : public Buffer {
+	class VulkanBuffer final : public IBuffer {
 	public:
 		VulkanBuffer(VulkanDevice* device, const BufferDescription& desc, const std::string& name);
 		~VulkanBuffer();

@@ -2,11 +2,11 @@
 #include <string>
 
 namespace rhi {
-	class Device;
+	class IDevice;
 
-	class Resource {
+	class IResource {
 	public:
-		virtual ~Resource() = default;
+		virtual ~IResource() = default;
 		virtual void* getHandle() const = 0;
 		virtual bool isTexture() const { return false; }
 		virtual bool isBuffer() const { return false; }
@@ -14,7 +14,7 @@ namespace rhi {
 		const std::string& getDebugName() const { return m_DebugName; }
 
 	protected:
-		Device* m_Device = nullptr;
+		IDevice* m_Device = nullptr;
 		std::string m_DebugName;
 	};
 }

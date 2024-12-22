@@ -86,15 +86,15 @@ namespace rhi::vulkan {
 		m_PendingCommandBuffers.push_back(m_CommandBuffer);
 	}
 
-	void VulkanCommandList::wait(Fence* dstFence, uint64_t value) {
+	void VulkanCommandList::wait(IFence* dstFence, uint64_t value) {
 		m_PendingWaits.emplace_back(dstFence, value);
 	}
 
-	void VulkanCommandList::signal(Fence* dstFence, uint64_t value) {
+	void VulkanCommandList::signal(IFence* dstFence, uint64_t value) {
 		m_PendingSignals.emplace_back(dstFence, value);
 	}
 
-	void VulkanCommandList::present(Swapchain* dstSwapchain) {
+	void VulkanCommandList::present(ISwapchain* dstSwapchain) {
 		m_PendingSwapchains.push_back(dstSwapchain);
 	}
 
@@ -120,7 +120,7 @@ namespace rhi::vulkan {
 		}
 		m_PendingSignals.clear();
 
-		for (Swapchain* swapchain : m_PendingSwapchains) {
+		for (ISwapchain* swapchain : m_PendingSwapchains) {
 			VulkanSwapchain* vulkanSwapchain = static_cast<VulkanSwapchain*>(swapchain);
 
 			waitSemaphores.push_back(vulkanSwapchain->getAcquireSemaphore());
@@ -149,7 +149,7 @@ namespace rhi::vulkan {
 
 		vkQueueSubmit(m_Queue, 1, &submitInfo, VK_NULL_HANDLE);
 
-		for (Swapchain* swapchain : m_PendingSwapchains) {
+		for (ISwapchain* swapchain : m_PendingSwapchains) {
 			static_cast<VulkanSwapchain*>(swapchain)->present(m_Queue);
 		}
 		m_PendingSwapchains.clear();
@@ -184,7 +184,7 @@ namespace rhi::vulkan {
 		}
 	}
 
-	void VulkanCommandList::copyBufferToTexture(Texture* dstTexture, uint32_t mipLevel, uint32_t arraySlice, Buffer* srcBuffer, uint32_t offset) {
+	void VulkanCommandList::copyBufferToTexture(ITexture* dstTexture, uint32_t mipLevel, uint32_t arraySlice, IBuffer* srcBuffer, uint32_t offset) {
 		flushBarriers();
 
 		const TextureDescription& desc = dstTexture->getDescription();
@@ -209,7 +209,7 @@ namespace rhi::vulkan {
 		vkCmdCopyBufferToImage2(m_CommandBuffer, &info);
 	}
 
-	void VulkanCommandList::copyTextureToBuffer(Buffer* dstBuffer, uint32_t offset, Texture* srcTexture, uint32_t mipLevel, uint32_t arraySlice) {
+	void VulkanCommandList::copyTextureToBuffer(IBuffer* dstBuffer, uint32_t offset, ITexture* srcTexture, uint32_t mipLevel, uint32_t arraySlice) {
 		flushBarriers();
 
 		const TextureDescription& desc = srcTexture->getDescription();
@@ -234,7 +234,7 @@ namespace rhi::vulkan {
 		vkCmdCopyImageToBuffer2(m_CommandBuffer, &info);
 	}
 
-	void VulkanCommandList::copyBuffer(Buffer* dstBuffer, uint32_t dstOffset, Buffer* srcBuffer, uint32_t srcOffset, uint32_t size) {
+	void VulkanCommandList::copyBuffer(IBuffer* dstBuffer, uint32_t dstOffset, IBuffer* srcBuffer, uint32_t srcOffset, uint32_t size) {
 		flushBarriers();
 
 		VkBufferCopy2 copy = { VK_STRUCTURE_TYPE_BUFFER_COPY_2 };
@@ -251,7 +251,7 @@ namespace rhi::vulkan {
 		vkCmdCopyBuffer2(m_CommandBuffer, &info);
 	}
 
-	void VulkanCommandList::copyTexture(Texture* dstTexture, uint32_t dstMip, uint32_t dstArray, Texture* srcTexture, uint32_t srcMip, uint32_t srcArray)
+	void VulkanCommandList::copyTexture(ITexture* dstTexture, uint32_t dstMip, uint32_t dstArray, ITexture* srcTexture, uint32_t srcMip, uint32_t srcArray)
 	{
 		flushBarriers();
 
@@ -281,16 +281,16 @@ namespace rhi::vulkan {
 		vkCmdCopyImage2(m_CommandBuffer, &info);
 	}
 
-	void VulkanCommandList::clearStorageBuffer(Resource* resource, Descriptor* storage, const float* clearValue)
+	void VulkanCommandList::clearStorageBuffer(IResource* resource, IDescriptor* storage, const float* clearValue)
 	{
 		//const UnorderedAccessDescriptorDescription& desc = ((VulkanUnorderedAccessDescriptor*)storage)->getDescription();
 	}
 
-	void VulkanCommandList::clearStorageBuffer(Resource* resource, Descriptor* storage, const uint32_t* clearValue)
+	void VulkanCommandList::clearStorageBuffer(IResource* resource, IDescriptor* storage, const uint32_t* clearValue)
 	{
 	}
 
-	void VulkanCommandList::textureBarrier(Texture* texture, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) {
+	void VulkanCommandList::textureBarrier(ITexture* texture, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) {
 		VkImageMemoryBarrier2 barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
 		barrier.image = static_cast<VkImage>(texture->getHandle());
 		barrier.srcStageMask = getVkStageMask(accessBefore);
@@ -310,7 +310,7 @@ namespace rhi::vulkan {
 		m_ImageBarriers.push_back(barrier);
 	}
 
-	void VulkanCommandList::bufferBarrier(Buffer* buffer, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) {
+	void VulkanCommandList::bufferBarrier(IBuffer* buffer, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) {
 		VkBufferMemoryBarrier2 barrier = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2 };
 		barrier.buffer = static_cast<VkBuffer>(buffer->getHandle());
 		barrier.offset = 0;
@@ -435,7 +435,7 @@ namespace rhi::vulkan {
 		vkCmdEndRendering(m_CommandBuffer);
 	}
 
-	void VulkanCommandList::bindPipeline(Pipeline* pipeline) {
+	void VulkanCommandList::bindPipeline(IPipelineState* pipeline) {
 		VkPipelineBindPoint bindPoint = pipeline->getType() == PipelineType::Compute ? VK_PIPELINE_BIND_POINT_COMPUTE : VK_PIPELINE_BIND_POINT_GRAPHICS;
 		vkCmdBindPipeline(m_CommandBuffer, bindPoint, static_cast<VkPipeline>(pipeline->getHandle()));
 	}
@@ -448,7 +448,7 @@ namespace rhi::vulkan {
 		vkCmdSetBlendConstants(m_CommandBuffer, blendFactor);
 	}
 
-	void VulkanCommandList::setIndexBuffer(Buffer* buffer, uint32_t offset, Format format) {
+	void VulkanCommandList::setIndexBuffer(IBuffer* buffer, uint32_t offset, Format format) {
 		VkIndexType indexType = (format == Format::R16_UINT) ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32;
 		vkCmdBindIndexBuffer(m_CommandBuffer, static_cast<VkBuffer>(buffer->getHandle()), offset, indexType);
 	}
@@ -626,7 +626,7 @@ namespace rhi::vulkan {
 	//	::clearUAV(this, resource, uav, desc, clearValue);
 	//}
 
-	void VulkanCommandList::writeBuffer(Buffer* buffer, uint32_t offset, uint32_t data) {
+	void VulkanCommandList::writeBuffer(IBuffer* buffer, uint32_t offset, uint32_t data) {
 		flushBarriers();
 		vkCmdUpdateBuffer(m_CommandBuffer, static_cast<VkBuffer>(buffer->getHandle()), offset, sizeof(uint32_t), &data);
 	}

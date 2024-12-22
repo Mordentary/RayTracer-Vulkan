@@ -7,7 +7,7 @@
 
 namespace rhi
 {
-	class Shader : public Resource
+	class IShader : public IResource
 	{
 	public:
 		const ShaderDescription& getDescription() const { return m_Description; }

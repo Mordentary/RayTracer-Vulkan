@@ -280,7 +280,7 @@ namespace SE {
 		}
 	}
 
-	void Editor::render(rhi::CommandList* cmd) {
+	void Editor::render(rhi::ICommandList* cmd) {
 		//VkFormat swapchainFormat = m_Engine->getSwapchainFormat();
 
 		//VkRenderingAttachmentInfo colorAttachment = vkInit::attachmentInfo(

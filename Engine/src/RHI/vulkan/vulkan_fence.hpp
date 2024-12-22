@@ -5,7 +5,7 @@ namespace rhi::vulkan
 {
 	class VulkanDevice;
 
-	class VulkanFence : public Fence
+	class VulkanFence : public IFence
 	{
 	public:
 		VulkanFence(VulkanDevice* device, const std::string& name);

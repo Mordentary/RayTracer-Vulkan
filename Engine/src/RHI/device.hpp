@@ -5,18 +5,18 @@
 #include <string>
 
 namespace rhi {
-	class CommandList;
-	class Swapchain;
-	class Fence;
-	class Buffer;
-	class Texture;
-	class Shader;
-	class Pipeline;
-	class Descriptor;
-	class Device
+	class ICommandList;
+	class ISwapchain;
+	class IFence;
+	class IBuffer;
+	class ITexture;
+	class IShader;
+	class IPipelineState;
+	class IDescriptor;
+	class IDevice
 	{
 	public:
-		virtual ~Device() = default;
+		virtual ~IDevice() = default;
 		virtual void* getHandle() const = 0;
 		virtual void beginFrame() = 0;
 		virtual void endFrame() = 0;
@@ -25,18 +25,18 @@ namespace rhi {
 		const DeviceDescription& getDescription() const { return m_Description; }
 
 		// Core resource creation
-		virtual CommandList* createCommandList(CommandType queue_type, const std::string& name) = 0;
-		virtual Swapchain* createSwapchain(const SwapchainDescription& desc, const std::string& name) = 0;
-		virtual Fence* createFence(const std::string& name) = 0;
-		virtual Buffer* createBuffer(const BufferDescription& desc, const std::string& name) = 0;
-		virtual Texture* createTexture(const TextureDescription& desc, const std::string& name) = 0;
-		virtual Shader* createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name) = 0;
-		virtual Pipeline* createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name) = 0;
-		virtual Pipeline* createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name) = 0;
-		virtual Descriptor* createShaderResourceDescriptor(Resource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name) = 0;
-		virtual Descriptor* createUnorderedAccessDescriptor(Resource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name) = 0;
-		virtual Descriptor* createConstantBufferDescriptor(Buffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name) = 0;
-		virtual Descriptor* createSampler(const SamplerDescription& desc, const std::string& name) = 0;
+		virtual ICommandList* createCommandList(CommandType queue_type, const std::string& name) = 0;
+		virtual ISwapchain* createSwapchain(const SwapchainDescription& desc, const std::string& name) = 0;
+		virtual IFence* createFence(const std::string& name) = 0;
+		virtual IBuffer* createBuffer(const BufferDescription& desc, const std::string& name) = 0;
+		virtual ITexture* createTexture(const TextureDescription& desc, const std::string& name) = 0;
+		virtual IShader* createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name) = 0;
+		virtual IPipelineState* createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name) = 0;
+		virtual IPipelineState* createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name) = 0;
+		virtual IDescriptor* createShaderResourceDescriptor(IResource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name) = 0;
+		virtual IDescriptor* createUnorderedAccessDescriptor(IResource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name) = 0;
+		virtual IDescriptor* createConstantBufferDescriptor(IBuffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name) = 0;
+		virtual IDescriptor* createSampler(const SamplerDescription& desc, const std::string& name) = 0;
 
 	protected:
 		DeviceDescription m_Description;

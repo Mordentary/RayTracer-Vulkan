@@ -28,7 +28,7 @@ namespace SE {
 		void create();
 		void beginFrame();
 		void endFrame();
-		void render(rhi::CommandList* cmd);
+		void render(rhi::ICommandList* cmd);
 		void update();
 		void handleEvent(const SDL_Event& event);
 		sigslot::signal<uint32_t, uint32_t> ViewportResizeSignal;

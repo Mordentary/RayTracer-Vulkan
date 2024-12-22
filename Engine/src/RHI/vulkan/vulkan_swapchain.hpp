@@ -7,7 +7,7 @@ class VulkanTexture;
 
 namespace rhi::vulkan
 {
-	class VulkanSwapchain final : public Swapchain
+	class VulkanSwapchain final : public ISwapchain
 	{
 	public:
 		VulkanSwapchain(VulkanDevice* pDevice, const SwapchainDescription& desc, const std::string& name);
@@ -20,7 +20,7 @@ namespace rhi::vulkan
 
 		virtual void* getHandle() const override { return m_Swapchain; }
 		virtual bool acquireNextImage() override;
-		virtual Texture* getCurrentSwapchainImage() override;
+		virtual ITexture* getCurrentSwapchainImage() override;
 		virtual bool resize(uint32_t width, uint32_t height) override;
 		virtual void setVSync(bool enabled) override;
 
@@ -37,7 +37,7 @@ namespace rhi::vulkan
 		bool m_EnableVsync = true;
 
 		uint32_t m_CurrentSwapchainImage = 0;
-		std::vector<SE::Scoped<Texture>> m_SwapchainImages;
+		std::vector<SE::Scoped<ITexture>> m_SwapchainImages;
 
 		int32_t m_frameSemaphoreIndex = uint32_t(-1);
 		std::vector<VkSemaphore> m_AcquireSemaphores;

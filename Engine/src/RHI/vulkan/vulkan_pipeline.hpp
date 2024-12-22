@@ -5,10 +5,10 @@
 namespace rhi::vulkan {
 	class VulkanDevice;
 
-	class VulkanGraphicsPipeline : public Pipeline {
+	class VulkanGraphicsPipelineState : public IPipelineState {
 	public:
-		VulkanGraphicsPipeline(VulkanDevice* device, const GraphicsPipelineDescription& desc, const std::string& name);
-		~VulkanGraphicsPipeline();
+		VulkanGraphicsPipelineState(VulkanDevice* device, const GraphicsPipelineDescription& desc, const std::string& name);
+		~VulkanGraphicsPipelineState();
 
 		void* getHandle() const override { return m_Pipeline; }
 		bool create() override;
@@ -17,11 +17,11 @@ namespace rhi::vulkan {
 		GraphicsPipelineDescription m_Description;
 		VkPipeline m_Pipeline{ VK_NULL_HANDLE };
 	};
-	class VulkanComputePipeline : public Pipeline
+	class VulkanComputePipelineState : public IPipelineState
 	{
 	public:
-		VulkanComputePipeline(VulkanDevice* device, const ComputePipelineDescription& desc, const std::string& name);
-		~VulkanComputePipeline();
+		VulkanComputePipelineState(VulkanDevice* device, const ComputePipelineDescription& desc, const std::string& name);
+		~VulkanComputePipelineState();
 
 		void* getHandle() const override { return m_Pipeline; }
 		bool create() override;

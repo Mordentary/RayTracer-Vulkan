@@ -7,7 +7,7 @@ namespace SE
 
 	struct StagingBuffer
 	{
-		rhi::Buffer* buffer;
+		rhi::IBuffer* buffer;
 		uint32_t size;
 		uint32_t offset;
 	};
@@ -23,7 +23,7 @@ namespace SE
 
 	private:
 		Renderer* m_Renderer = nullptr;
-		std::vector<Scoped<rhi::Buffer>> m_pBuffers;
+		std::vector<Scoped<rhi::IBuffer>> m_pBuffers;
 		uint32_t m_CurrentBuffer = 0;
 		uint32_t m_AllocatedSize = 0;
 		uint64_t m_LastAllocatedFrame = 0;

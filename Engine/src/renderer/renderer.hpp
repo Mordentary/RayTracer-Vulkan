@@ -17,40 +17,40 @@ namespace SE
 		void createRenderTarget(uint32_t renderWidth, uint32_t renderHeight);
 
 		void renderFrame();
-		rhi::Device* getDevice() const { return m_Device.get(); }
+		rhi::IDevice* getDevice() const { return m_Device.get(); }
 		uint64_t getFrameID() { return m_Device->getFrameID(); };
-		rhi::Swapchain* getSwapchain() const { return m_Swapchain.get(); }
-		rhi::Texture* getRenderTarget() const { return m_RenderTargetColor.get(); }
-		void uploadTexture(rhi::Texture* texture, const void* data);
-		void uploadBuffer(rhi::Buffer* buffer, uint32_t offset, const void* data, uint32_t data_size);
+		rhi::ISwapchain* getSwapchain() const { return m_Swapchain.get(); }
+		rhi::ITexture* getRenderTarget() const { return m_RenderTargetColor.get(); }
+		void uploadTexture(rhi::ITexture* texture, const void* data);
+		void uploadBuffer(rhi::IBuffer* buffer, uint32_t offset, const void* data, uint32_t data_size);
 	private:
-		Scoped<rhi::Device> m_Device = nullptr;
-		Scoped<rhi::Swapchain> m_Swapchain = nullptr;
+		Scoped<rhi::IDevice> m_Device = nullptr;
+		Scoped<rhi::ISwapchain> m_Swapchain = nullptr;
 		glm::vec2 m_WindowSize{};
 		glm::vec2 m_RenderTargetSize{};
-		Scoped<rhi::Texture> m_RenderTargetColor{};
-		Scoped<rhi::Texture> m_RenderTargetDepth{};
-		rhi::Pipeline* m_DefaultPipeline;
+		Scoped<rhi::ITexture> m_RenderTargetColor{};
+		Scoped<rhi::ITexture> m_RenderTargetDepth{};
+		rhi::IPipelineState* m_DefaultPipeline;
 
 		struct FrameResources {
 			uint64_t frameFenceValue = 0;
-			Scoped<rhi::CommandList> commandList = nullptr;
-			Scoped<rhi::CommandList> computeCommandList = nullptr;
-			Scoped<rhi::CommandList> uploadCommandList = nullptr;
+			Scoped<rhi::ICommandList> commandList = nullptr;
+			Scoped<rhi::ICommandList> computeCommandList = nullptr;
+			Scoped<rhi::ICommandList> uploadCommandList = nullptr;
 			Scoped<StagingBufferAllocator> stagingBufferAllocator = nullptr;
 		};
 
-		Scoped<rhi::Fence> m_UploadFence = nullptr;
-		Scoped<rhi::Fence> m_FrameFence = nullptr;
+		Scoped<rhi::IFence> m_UploadFence = nullptr;
+		Scoped<rhi::IFence> m_FrameFence = nullptr;
 		uint64_t m_CurrenFrameFenceValue = 0;
 		uint64_t m_CurrentUploadFenceValue = 0;
 		std::array<FrameResources, SE_MAX_FRAMES_IN_FLIGHT> m_FrameResources{};
-		rhi::Descriptor* vertexBufferDesc = nullptr;
+		rhi::IDescriptor* vertexBufferDesc = nullptr;
 
 		ShaderCompiler* compiler;
 		struct TextureUpload
 		{
-			rhi::Texture* texture;
+			rhi::ITexture* texture;
 			uint32_t mip_level;
 			uint32_t array_slice;
 			StagingBuffer staging_buffer;
@@ -60,7 +60,7 @@ namespace SE
 
 		struct BufferUpload
 		{
-			rhi::Buffer* buffer;
+			rhi::IBuffer* buffer;
 			uint32_t offset;
 			StagingBuffer staging_buffer;
 		};
@@ -69,7 +69,7 @@ namespace SE
 		void onWindowResize(uint32_t width, uint32_t height);
 		void onViewportResize(uint32_t width, uint32_t height);
 		void waitForPreviousFrame();
-		void copyToBackBuffer(rhi::CommandList* commandList);
+		void copyToBackBuffer(rhi::ICommandList* commandList);
 	private:
 		void initFrameResources();
 		void beginFrame();

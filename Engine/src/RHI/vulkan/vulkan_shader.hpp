@@ -5,7 +5,7 @@
 namespace rhi::vulkan
 {
 	class VulkanDevice;
-	class VulkanShader : public Shader
+	class VulkanShader : public IShader
 	{
 	public:
 		VulkanShader(VulkanDevice* pDevice, const ShaderDescription& desc, const std::string& name);
