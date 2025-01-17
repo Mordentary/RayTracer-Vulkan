@@ -40,7 +40,7 @@ namespace rhi::vulkan
 
 		VkImageCreateInfo createInfo = toImageCreateInfo(m_Description);
 		VmaAllocationCreateInfo allocationInfo = {};
-		allocationInfo.usage = translateMemoryType(m_Description.memoryType);
+		allocationInfo.usage = translateMemoryTypeToVMA(m_Description.memoryType);
 
 		VK_CHECK_RETURN(vmaCreateImage(allocator, &createInfo, &allocationInfo, &m_Image, &m_allocation, nullptr), false, "Image creation failed!");
 

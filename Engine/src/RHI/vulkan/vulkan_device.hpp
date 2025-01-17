@@ -14,10 +14,11 @@
 #include <vector>
 #include <vk_mem_alloc.h>
 #include <vulkan\vulkan_core.h>
+#include <unordered_map>
 
 namespace rhi::vulkan
 {
-	class VulkanDevice final : public rhi::IDevice {
+	class VulkanDevice final : public IDevice {
 	public:
 		VulkanDevice(const DeviceDescription& desc);
 		~VulkanDevice();
@@ -35,10 +36,12 @@ namespace rhi::vulkan
 		virtual IShader* createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name) override;
 		virtual IPipelineState* createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name) override;
 		virtual IPipelineState* createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name) override;
-		virtual IDescriptor* createShaderResourceDescriptor(IResource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name) override;
+		virtual IDescriptor* createShaderResourceViewDescriptor(IResource* resource, const ShaderResourceViewDescriptorDescription& desc, const std::string& name) override;
 		virtual IDescriptor* createUnorderedAccessDescriptor(IResource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name) override;
 		virtual IDescriptor* createConstantBufferDescriptor(IBuffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name) override;
 		virtual IDescriptor* createSampler(const SamplerDescription& desc, const std::string& name) override;
+
+		virtual uint32_t getAllocationSize(const rhi::TextureDescription& desc) override;
 
 		//Descriptors
 		uint32_t allocateResourceDescriptor(void** descriptor);
@@ -107,6 +110,8 @@ namespace rhi::vulkan
 		SE::Scoped<ICommandList> m_TransitionGraphicsCommandList[SE::SE_MAX_FRAMES_IN_FLIGHT] = {};
 		std::vector<std::pair<ITexture*, ResourceAccessFlags>> m_PendingGraphicsTransitions;
 		std::vector<std::pair<ITexture*, ResourceAccessFlags>> m_PendingCopyTransitions;
+
+		//std::unordered_map<TextureDescription, uint32_t> m_TextureSizeMap;
 	};
 	template<typename T>
 	void VulkanDevice::enqueueDeletion(T objectHandle)

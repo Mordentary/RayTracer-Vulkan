@@ -3,22 +3,22 @@
 #include"vulkan_texture.hpp"
 namespace rhi::vulkan
 {
-	VulkanShaderResourceDescriptor::VulkanShaderResourceDescriptor(VulkanDevice* device, IResource* resource,
-		const ShaderResourceDescriptorDescription& desc, const std::string& name) {
+	VulkanShaderResourceViewDescriptor::VulkanShaderResourceViewDescriptor(VulkanDevice* device, IResource* resource,
+		const ShaderResourceViewDescriptorDescription& desc, const std::string& name) {
 		m_Device = device;
 		m_DebugName = name;
 		m_Resource = resource;
 		m_Description = desc;
 	}
 
-	VulkanShaderResourceDescriptor::~VulkanShaderResourceDescriptor() {
+	VulkanShaderResourceViewDescriptor::~VulkanShaderResourceViewDescriptor() {
 		VulkanDevice* device = (VulkanDevice*)m_Device;
 		if (m_ImageView != VK_NULL_HANDLE) {
 			device->enqueueDeletion(m_ImageView);
 		}
 		device->freeResourceDescriptor(m_HeapIndex);
 	}
-	bool VulkanShaderResourceDescriptor::create() {
+	bool VulkanShaderResourceViewDescriptor::create() {
 		VkDevice device = (VkDevice)m_Device->getHandle();
 		const VkPhysicalDeviceDescriptorBufferPropertiesEXT& descriptorBufferProperties = ((VulkanDevice*)m_Device)->getDescriptorBufferProperties();
 

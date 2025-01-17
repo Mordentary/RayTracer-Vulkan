@@ -8,8 +8,10 @@
 #include "swapchain.hpp"
 #include "descriptor.hpp"
 #include "device.hpp"
+#include "heap.hpp"
 #include "fence.hpp"
 #include "command_list.hpp"
+#include <engine_core.h>
 
 namespace rhi {
 	// Device creation function

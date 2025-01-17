@@ -12,7 +12,7 @@ namespace rhi::vulkan
 			"Invalid LOD range: min {} > max {}", desc.minLod, desc.maxLod);
 	}
 
-	VmaMemoryUsage translateMemoryType(MemoryType type) {
+	VmaMemoryUsage translateMemoryTypeToVMA(MemoryType type) {
 		switch (type) {
 		case MemoryType::GpuOnly:
 			return VMA_MEMORY_USAGE_GPU_ONLY;

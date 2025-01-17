@@ -50,7 +50,7 @@ namespace rhi::vulkan {
 		}
 
 		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = translateMemoryType(m_Description.memoryType);
+		allocInfo.usage = translateMemoryTypeToVMA(m_Description.memoryType);
 
 		if (m_Description.mapped) {
 			allocInfo.flags |= VMA_ALLOCATION_CREATE_MAPPED_BIT;

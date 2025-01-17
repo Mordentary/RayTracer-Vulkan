@@ -16,12 +16,12 @@ namespace SE
 		DAGEdge(DirectedAcyclicGraph& graph, DAGNode* from, DAGNode* to);
 		virtual ~DAGEdge() = default;
 
-		DAGNodeID GetFromNode() const { return m_from; }
-		DAGNodeID GetToNode() const { return m_to; }
+		DAGNodeID GetFromNode() const { return m_From; }
+		DAGNodeID GetToNode() const { return m_To; }
 
 	private:
-		const DAGNodeID m_from;
-		const DAGNodeID m_to;
+		const DAGNodeID m_From;
+		const DAGNodeID m_To;
 	};
 
 	class DAGNode
@@ -55,8 +55,8 @@ namespace SE
 		void clear();
 		void cull();
 		bool isEdgeValid(const DAGEdge* edge) const;
-		void getIncomingEdges(const DAGNode* node, const std::vector<DAGEdge*>& edges) const;
-		void getOutgoingEdges(const DAGNode* node, const std::vector<DAGEdge*>& edges) const;
+		void getIncomingEdges(const DAGNode* node, std::vector<DAGEdge*>& edges) const;
+		void getOutgoingEdges(const DAGNode* node, std::vector<DAGEdge*>& edges) const;
 	private:
 		std::vector<DAGNode*> m_Nodes;
 		std::vector<DAGEdge*> m_Edges;

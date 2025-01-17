@@ -11,6 +11,7 @@ namespace SE
 namespace rhi {
 	class IShader;
 	class ITexture;
+	class IHeap;
 
 	// Constants and Static Values
 	static const uint32_t SE_MAX_RESOURCE_DESCRIPTOR_COUNT = 65536;
@@ -475,7 +476,7 @@ namespace rhi {
 		uint32_t offset = 0;
 	};
 
-	struct ShaderResourceDescriptorDescription
+	struct ShaderResourceViewDescriptorDescription
 	{
 		ShaderResourceDescriptorType type = ShaderResourceDescriptorType::Texture2D;
 		Format format = Format::Unknown;
@@ -498,10 +499,10 @@ namespace rhi {
 			} buffer;
 		};
 
-		ShaderResourceDescriptorDescription() : texture() {}
+		ShaderResourceViewDescriptorDescription() : texture() {}
 	};
 
-	inline bool operator==(const ShaderResourceDescriptorDescription& lhs, const ShaderResourceDescriptorDescription& rhs)
+	inline bool operator==(const ShaderResourceViewDescriptorDescription& lhs, const ShaderResourceViewDescriptorDescription& rhs)
 	{
 		return lhs.type == rhs.type &&
 			lhs.texture.mipSlice == rhs.texture.mipSlice &&
@@ -562,7 +563,55 @@ namespace rhi {
 		MemoryType memoryType = MemoryType::GpuOnly;
 		BufferUsageFlags usage = BufferUsageFlags::None;
 		bool mapped = false;           // Whether buffer should be persistently mapped
+		IHeap* heap = nullptr;
+		uint32_t heapOffset = 0;
 	};
+
+	struct TextureDescription {
+		uint32_t width = 1;
+		uint32_t height = 1;
+		uint32_t depth = 1;
+		uint32_t mipLevels = 1;
+		uint32_t arraySize = 1;
+		Format format = Format::Unknown;
+		TextureType type = TextureType::Texture2D;
+		TextureUsageFlags usage = TextureUsageFlags::None;
+		MemoryType memoryType = MemoryType::GpuOnly;
+		IHeap* heap = nullptr;
+		uint32_t heapOffset = 0;
+	};
+
+	//bool operator==(const BufferDescription& lhs, const BufferDescription& rhs) {
+	//	return (lhs.size == rhs.size) &&
+	//		(lhs.stride == rhs.stride) &&
+	//		(lhs.memoryType == rhs.memoryType) &&
+	//		(lhs.usage == rhs.usage) &&
+	//		(lhs.mapped == rhs.mapped) &&
+	//		(lhs.heap == rhs.heap) &&
+	//		(lhs.heapOffset == rhs.heapOffset);
+	//}
+
+	//bool operator!=(const BufferDescription& lhs, const BufferDescription& rhs) {
+	//	return !(lhs == rhs);
+	//}
+
+	//bool operator==(const TextureDescription& lhs, const TextureDescription& rhs) {
+	//	return (lhs.width == rhs.width) &&
+	//		(lhs.height == rhs.height) &&
+	//		(lhs.depth == rhs.depth) &&
+	//		(lhs.mipLevels == rhs.mipLevels) &&
+	//		(lhs.arraySize == rhs.arraySize) &&
+	//		(lhs.format == rhs.format) &&
+	//		(lhs.type == rhs.type) &&
+	//		(lhs.usage == rhs.usage) &&
+	//		(lhs.memoryType == rhs.memoryType) &&
+	//		(lhs.heap == rhs.heap) &&         // pointer comparison (address equality)
+	//		(lhs.heapOffset == rhs.heapOffset);
+	//}
+
+	//bool operator!=(const TextureDescription& lhs, const TextureDescription& rhs) {
+	//	return !(lhs == rhs);
+	//}
 
 	struct DeviceDescription {
 		void* windowHandle = nullptr;
@@ -585,15 +634,9 @@ namespace rhi {
 		bool vsync = true;
 	};
 
-	struct TextureDescription {
-		uint32_t width = 1;
-		uint32_t height = 1;
-		uint32_t depth = 1;
-		uint32_t mipLevels = 1;
-		uint32_t arraySize = 1;
-		Format format = Format::Unknown;
-		TextureType type = TextureType::Texture2D;
-		TextureUsageFlags usage = TextureUsageFlags::None;
+	struct HeapDescription
+	{
+		uint32_t size = 1;
 		MemoryType memoryType = MemoryType::GpuOnly;
 	};
 

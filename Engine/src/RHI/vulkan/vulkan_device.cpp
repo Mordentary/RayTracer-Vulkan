@@ -1,4 +1,5 @@
 #include "vulkan_device.hpp"
+#include "vulkan_device.hpp"
 #include <VkBootstrap.h>
 #define VOLK_IMPLEMENTATION
 #include <volk/volk.h>
@@ -608,9 +609,9 @@ namespace rhi::vulkan {
 		return fence;
 	}
 
-	IDescriptor* VulkanDevice::createShaderResourceDescriptor(IResource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name)
+	IDescriptor* VulkanDevice::createShaderResourceViewDescriptor(IResource* resource, const ShaderResourceViewDescriptorDescription& desc, const std::string& name)
 	{
-		VulkanShaderResourceDescriptor* resourceDescriptor = new VulkanShaderResourceDescriptor(this, resource, desc, name);
+		VulkanShaderResourceViewDescriptor* resourceDescriptor = new VulkanShaderResourceViewDescriptor(this, resource, desc, name);
 		if (!resourceDescriptor->create())
 		{
 			delete resourceDescriptor;
@@ -650,6 +651,36 @@ namespace rhi::vulkan {
 			return nullptr;
 		}
 		return samplerDescriptor;
+	}
+
+	uint32_t VulkanDevice::getAllocationSize(const rhi::TextureDescription& desc)
+	{
+		//auto iter = m_TextureSizeMap.find(desc);
+		//if (iter != m_TextureSizeMap.end())
+		//{
+		//	return iter->second;
+		//}
+
+		//VkImageCreateInfo createInfo = toImageCreateInfo(desc);
+		//VkImage image;
+		//VkResult result = vkCreateImage(m_Device, &createInfo, nullptr, &image);
+		//if (result != VK_SUCCESS)
+		//{
+		//	return 0;
+		//}
+
+		//VkImageMemoryRequirementsInfo2 info = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2 };
+		//info.image = image;
+
+		//VkMemoryRequirements2 requirements = { VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
+		//vkGetImageMemoryRequirements2(m_Device, &info, &requirements);
+
+		//vkDestroyImage(m_Device, image, nullptr);
+
+		//m_TextureSizeMap.emplace(desc, requirements.memoryRequirements.size);
+		//return (uint32_t)requirements.memoryRequirements.size;
+
+		return 0;
 	}
 
 	uint32_t VulkanDevice::allocateResourceDescriptor(void** descriptor)

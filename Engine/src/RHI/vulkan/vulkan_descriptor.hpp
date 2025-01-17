@@ -9,17 +9,17 @@ namespace rhi::vulkan {
 	class Device;
 	class VulkanDevice;
 
-	class VulkanShaderResourceDescriptor : public IDescriptor {
+	class VulkanShaderResourceViewDescriptor : public IDescriptor {
 	public:
-		VulkanShaderResourceDescriptor(VulkanDevice* device, IResource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name);
-		~VulkanShaderResourceDescriptor();
+		VulkanShaderResourceViewDescriptor(VulkanDevice* device, IResource* resource, const ShaderResourceViewDescriptorDescription& desc, const std::string& name);
+		~VulkanShaderResourceViewDescriptor();
 		bool create();
 		virtual void* getHandle() const override { return m_Resource->getHandle(); }
 		virtual uint32_t getDescriptorArrayIndex() const override { return m_HeapIndex; }
 
 	private:
 		IResource* m_Resource = nullptr;
-		ShaderResourceDescriptorDescription m_Description = {};
+		ShaderResourceViewDescriptorDescription m_Description = {};
 		VkImageView m_ImageView = VK_NULL_HANDLE;
 		uint32_t m_HeapIndex = RHI_INVALID_RESOURCE;
 	};

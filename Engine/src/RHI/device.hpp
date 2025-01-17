@@ -33,11 +33,12 @@ namespace rhi {
 		virtual IShader* createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name) = 0;
 		virtual IPipelineState* createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name) = 0;
 		virtual IPipelineState* createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name) = 0;
-		virtual IDescriptor* createShaderResourceDescriptor(IResource* resource, const ShaderResourceDescriptorDescription& desc, const std::string& name) = 0;
+		virtual IDescriptor* createShaderResourceViewDescriptor(IResource* resource, const ShaderResourceViewDescriptorDescription& desc, const std::string& name) = 0;
 		virtual IDescriptor* createUnorderedAccessDescriptor(IResource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name) = 0;
 		virtual IDescriptor* createConstantBufferDescriptor(IBuffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name) = 0;
 		virtual IDescriptor* createSampler(const SamplerDescription& desc, const std::string& name) = 0;
 
+		virtual uint32_t getAllocationSize(const rhi::TextureDescription& desc) = 0;
 	protected:
 		DeviceDescription m_Description;
 		uint64_t m_FrameID = 0;

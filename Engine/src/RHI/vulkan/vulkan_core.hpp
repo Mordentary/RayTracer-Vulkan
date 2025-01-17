@@ -39,7 +39,7 @@ namespace rhi::vulkan
 	void validateSamplerDescription(const SamplerDescription& desc);
 
 	// Translation functions for buffer and memory
-	VmaMemoryUsage translateMemoryType(MemoryType type);
+	VmaMemoryUsage translateMemoryTypeToVMA(MemoryType type);
 
 	// Format and layout conversions
 	VkFormat toVkFormat(Format format, bool sRGB = false);
