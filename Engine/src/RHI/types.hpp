@@ -406,7 +406,7 @@ namespace rhi {
 		None = 0,
 		Present = 1 << 0,
 		RenderTarget = 1 << 1,
-		DepthStencil = 1 << 2,
+		DepthStencilStorage = 1 << 2,
 		DepthStencilRead = 1 << 3,
 		VertexShaderRead = 1 << 4,
 		PixelShaderRead = 1 << 5,
@@ -421,15 +421,18 @@ namespace rhi {
 		IndexBuffer = 1 << 14,
 		IndirectArgs = 1 << 15,
 		AccelerationStructureRead = 1 << 16,
-		AccelerationStructureWrite = 1 << 17,
+		AccelerationStructureStorage = 1 << 17,
 		Discard = 1 << 18, // Aliasing barrier
 
 		// Composite flags
-		ShaderRead = VertexShaderRead | PixelShaderRead | ComputeShaderRead,
-		ShaderStorage = VertexShaderStorage | PixelShaderStorage | ComputeShaderStorage,
-		DepthStencilAccess = DepthStencil | DepthStencilRead,
-		TransferAccess = TransferDst | TransferSrc,
-		AccelerationStructureAccess = AccelerationStructureRead | AccelerationStructureWrite
+		MaskShaderVS = VertexShaderRead | VertexShaderStorage,
+		MaskShaderPS = PixelShaderRead | PixelShaderStorage,
+		MaskShaderCS = ComputeShaderRead | ComputeShaderStorage,
+		MaskShaderRead = VertexShaderRead | PixelShaderRead | ComputeShaderRead,
+		MaskShaderStorage = VertexShaderStorage | PixelShaderStorage | ComputeShaderStorage,
+		MaskDepthStencilAccess = DepthStencilStorage | DepthStencilRead,
+		MaskTransferAccess = TransferDst | TransferSrc,
+		MaskAccelerationStructureAccess = AccelerationStructureRead | AccelerationStructureStorage
 	};
 
 	inline ResourceAccessFlags operator|(ResourceAccessFlags lhs, ResourceAccessFlags rhs) {
@@ -565,6 +568,19 @@ namespace rhi {
 		bool mapped = false;           // Whether buffer should be persistently mapped
 		IHeap* heap = nullptr;
 		uint32_t heapOffset = 0;
+		bool operator==(const BufferDescription& other) const {
+			return size == other.size &&
+				stride == other.stride &&
+				memoryType == other.memoryType &&
+				usage == other.usage &&
+				mapped == other.mapped &&
+				heap == other.heap &&
+				heapOffset == other.heapOffset;
+		}
+
+		bool operator!=(const BufferDescription& other) const {
+			return !(*this == other);
+		}
 	};
 
 	struct TextureDescription {
@@ -579,6 +595,23 @@ namespace rhi {
 		MemoryType memoryType = MemoryType::GpuOnly;
 		IHeap* heap = nullptr;
 		uint32_t heapOffset = 0;
+		bool operator==(const TextureDescription& other) const {
+			return width == other.width &&
+				height == other.height &&
+				depth == other.depth &&
+				mipLevels == other.mipLevels &&
+				arraySize == other.arraySize &&
+				format == other.format &&
+				type == other.type &&
+				usage == other.usage &&
+				memoryType == other.memoryType &&
+				heap == other.heap &&
+				heapOffset == other.heapOffset;
+		}
+
+		bool operator!=(const TextureDescription& other) const {
+			return !(*this == other);
+		}
 	};
 
 	//bool operator==(const BufferDescription& lhs, const BufferDescription& rhs) {
@@ -649,5 +682,30 @@ namespace rhi {
 	constexpr T alignToPowerOfTwo(T value, T alignment) {
 		SE_ASSERT_NOMSG((alignment & (alignment - 1)) == 0); // Verify power of 2
 		return (value + (alignment - 1)) & ~(alignment - 1);
+	}
+
+	inline bool isStencilFormat(Format format)
+	{
+		switch (format) {
+		case Format::D24_UNORM_S8_UINT:
+		case Format::D32_SFLOAT_S8_UINT:
+		case Format::S8_UINT:
+			return true;
+		default:
+			return false;
+		}
+	}
+
+	inline bool isDepthFormat(Format format)
+	{
+		switch (format) {
+		case Format::D24_UNORM_S8_UINT:
+		case Format::D32_SFLOAT_S8_UINT:
+		case Format::D32_SFLOAT:
+		case Format::D16_UNORM:
+			return true;
+		default:
+			return false;
+		}
 	}
 }

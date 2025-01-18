@@ -15,6 +15,19 @@
 #include <vk_mem_alloc.h>
 #include <vulkan\vulkan_core.h>
 #include <unordered_map>
+#include"xxHash/xxhash.h"
+
+namespace std
+{
+	template <>
+	struct std::hash<rhi::TextureDescription>
+	{
+		size_t operator()(const rhi::TextureDescription& desc) const
+		{
+			return XXH3_64bits(&desc, sizeof(desc));
+		}
+	};
+}
 
 namespace rhi::vulkan
 {
@@ -40,6 +53,7 @@ namespace rhi::vulkan
 		virtual IDescriptor* createUnorderedAccessDescriptor(IResource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name) override;
 		virtual IDescriptor* createConstantBufferDescriptor(IBuffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name) override;
 		virtual IDescriptor* createSampler(const SamplerDescription& desc, const std::string& name) override;
+		virtual IHeap* createHeap(const HeapDescription& desc, const std::string& name) override;
 
 		virtual uint32_t getAllocationSize(const rhi::TextureDescription& desc) override;
 
@@ -111,7 +125,7 @@ namespace rhi::vulkan
 		std::vector<std::pair<ITexture*, ResourceAccessFlags>> m_PendingGraphicsTransitions;
 		std::vector<std::pair<ITexture*, ResourceAccessFlags>> m_PendingCopyTransitions;
 
-		//std::unordered_map<TextureDescription, uint32_t> m_TextureSizeMap;
+		std::unordered_map<TextureDescription, uint32_t> m_TextureSizeMap;
 	};
 	template<typename T>
 	void VulkanDevice::enqueueDeletion(T objectHandle)

@@ -81,6 +81,15 @@ namespace SE {
 #endif
 		}
 
+		void assertFailed(const char* expr, const std::source_location& loc, const char* msg) {
+			logAssert(expr, msg, loc);
+#ifdef _MSC_VER
+			__debugbreak();
+#else
+			std::abort();
+#endif
+		}
+
 		bool vkCheck(VkResult result, const std::source_location& loc, const std::string& msg);
 
 		template<typename... Args>
@@ -166,29 +175,42 @@ namespace SE {
 
 	// Assertion macros
 #if defined(_DEBUG) || !defined(NDEBUG)
+	namespace detail {
+		template<typename... Args>
+		inline void se_assert_impl(bool condition,
+			const char* exprStr,
+			const std::source_location& loc,
+			Args&&... args)
+		{
+			if (!condition) {
+				// If no extra arguments at all, use a default message
+				if constexpr (sizeof...(args) == 0) {
+					SE::Logger::getInstance().assertFailed(
+						exprStr,
+						loc,
+						"Assertion '{}' failed",
+						exprStr
+					);
+				}
+				// Else forward all user-supplied arguments
+				else {
+					SE::Logger::getInstance().assertFailed(
+						exprStr,
+						loc,
+						std::forward<Args>(args)...
+					);
+				}
+			}
+		}
+	}
+
 #define SE_ASSERT(expr, ...) \
-        do { \
-            if (!(expr)) { \
-                SE::Logger::getInstance().assertFailed( \
-                    #expr, std::source_location::current(), __VA_ARGS__); \
-            } \
-        } while(0)
+    SE::detail::se_assert_impl((expr), #expr, std::source_location::current(), ##__VA_ARGS__)
 
-#define SE_ASSERT_MSG(expr, msg) \
-        do { \
-            if (!(expr)) { \
-                SE::Logger::getInstance().assertFailed( \
-                    #expr, std::source_location::current(), msg); \
-            } \
-        } while(0)
+#define SE_ASSERT_MSG(expr, msg) SE_ASSERT(expr, msg)
 
-#define SE_ASSERT_NOMSG(expr) \
-        do { \
-            if (!(expr)) { \
-                SE::Logger::getInstance().assertFailed( \
-                    #expr, std::source_location::current(), "Assertion '{}' failed", #expr); \
-            } \
-        } while(0)
+#define SE_ASSERT_NOMSG(expr) SE_ASSERT(expr)
+
 #else
 #define SE_ASSERT(expr, ...) (void)(expr)
 #define SE_ASSERT_MSG(expr, msg) (void)(expr)

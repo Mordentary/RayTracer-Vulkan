@@ -19,8 +19,6 @@ namespace rhi::vulkan
 		vkSetDebugUtilsObjectNameEXT(device, &info);
 	}
 
-	bool isStencilFormat(Format format);
-
 	VkPrimitiveTopology toVkPrimitiveTopology(PrimitiveType type);
 	VkCullModeFlags toVkCullMode(CullMode mode);
 	VkPipelineRasterizationStateCreateInfo toVkPipelineRasterizationStateCreateInfo(const Rasterizer& state);

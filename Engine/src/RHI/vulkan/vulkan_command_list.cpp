@@ -5,9 +5,7 @@
 #include "vulkan_texture.hpp"
 #include "vulkan_descriptor.hpp"
 #include "vulkan_pipeline.hpp"
-//#include "vulkan_descriptor.hpp"
-//#include "vulkan_descriptor_allocator.hpp"
-//#include "vulkan_constant_buffer_allocator.hpp"
+#include "../types.hpp"
 
 namespace rhi::vulkan {
 	VulkanCommandList::VulkanCommandList(VulkanDevice* device, CommandType type, const std::string& name)

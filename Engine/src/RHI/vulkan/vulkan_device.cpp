@@ -15,6 +15,7 @@
 #include "vulkan_pipeline.hpp"
 #include "vulkan_command_list.hpp"
 #include "vulkan_descriptor.hpp"
+#include "vulkan_heap.hpp"
 
 namespace rhi::vulkan {
 	namespace
@@ -137,10 +138,10 @@ namespace rhi::vulkan {
 				accessFlags |= ResourceAccessFlags::RenderTarget;
 			}
 			if (anySet(desc.usage, TextureUsageFlags::DepthStencil)) {
-				accessFlags |= ResourceAccessFlags::DepthStencilAccess;
+				accessFlags |= ResourceAccessFlags::MaskDepthStencilAccess;
 			}
 			if (anySet(desc.usage, TextureUsageFlags::ShaderStorage)) {
-				accessFlags |= ResourceAccessFlags::ShaderStorage;
+				accessFlags |= ResourceAccessFlags::MaskShaderStorage;
 			}
 			if (accessFlags == ResourceAccessFlags::None) {
 				accessFlags = ResourceAccessFlags::TransferDst;
@@ -148,8 +149,8 @@ namespace rhi::vulkan {
 		}
 
 		// Enqueue transitions based on accessFlags using AnySet
-		if (anySet(accessFlags, ResourceAccessFlags::RenderTarget | ResourceAccessFlags::DepthStencilAccess |
-			ResourceAccessFlags::ShaderStorage | ResourceAccessFlags::Present)) {
+		if (anySet(accessFlags, ResourceAccessFlags::RenderTarget | ResourceAccessFlags::MaskDepthStencilAccess |
+			ResourceAccessFlags::MaskShaderStorage | ResourceAccessFlags::Present)) {
 			m_PendingGraphicsTransitions.emplace_back(texture, accessFlags);
 		}
 		else if (anySet(accessFlags, ResourceAccessFlags::TransferSrc | ResourceAccessFlags::TransferDst)) {
@@ -376,9 +377,8 @@ namespace rhi::vulkan {
 #ifdef _DEBUG
 		builder.enable_extension(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 #endif
-
 		auto built_instance = builder.build();
-		SE_ASSERT(built_instance, "Failed to create Vulkan instance!");
+		SE_ASSERT(built_instance.has_value(), "Failed to create Vulkan instance!");
 
 		auto vkb_inst = built_instance.value();
 
@@ -653,32 +653,43 @@ namespace rhi::vulkan {
 		return samplerDescriptor;
 	}
 
+	IHeap* VulkanDevice::createHeap(const HeapDescription& desc, const std::string& name)
+	{
+		VulkanHeap* heap = new VulkanHeap(this, desc, name);
+		if (!heap->create())
+		{
+			delete heap;
+			return nullptr;
+		}
+		return heap;
+	}
+
 	uint32_t VulkanDevice::getAllocationSize(const rhi::TextureDescription& desc)
 	{
-		//auto iter = m_TextureSizeMap.find(desc);
-		//if (iter != m_TextureSizeMap.end())
-		//{
-		//	return iter->second;
-		//}
+		auto iter = m_TextureSizeMap.find(desc);
+		if (iter != m_TextureSizeMap.end())
+		{
+			return iter->second;
+		}
 
-		//VkImageCreateInfo createInfo = toImageCreateInfo(desc);
-		//VkImage image;
-		//VkResult result = vkCreateImage(m_Device, &createInfo, nullptr, &image);
-		//if (result != VK_SUCCESS)
-		//{
-		//	return 0;
-		//}
+		VkImageCreateInfo createInfo = toImageCreateInfo(desc);
+		VkImage image;
+		VkResult result = vkCreateImage(m_Device, &createInfo, nullptr, &image);
+		if (result != VK_SUCCESS)
+		{
+			return 0;
+		}
 
-		//VkImageMemoryRequirementsInfo2 info = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2 };
-		//info.image = image;
+		VkImageMemoryRequirementsInfo2 info = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2 };
+		info.image = image;
 
-		//VkMemoryRequirements2 requirements = { VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
-		//vkGetImageMemoryRequirements2(m_Device, &info, &requirements);
+		VkMemoryRequirements2 requirements = { VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2 };
+		vkGetImageMemoryRequirements2(m_Device, &info, &requirements);
 
-		//vkDestroyImage(m_Device, image, nullptr);
+		vkDestroyImage(m_Device, image, nullptr);
 
-		//m_TextureSizeMap.emplace(desc, requirements.memoryRequirements.size);
-		//return (uint32_t)requirements.memoryRequirements.size;
+		m_TextureSizeMap.emplace(desc, requirements.memoryRequirements.size);
+		return (uint32_t)requirements.memoryRequirements.size;
 
 		return 0;
 	}

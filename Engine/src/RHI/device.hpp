@@ -37,6 +37,7 @@ namespace rhi {
 		virtual IDescriptor* createUnorderedAccessDescriptor(IResource* resource, const UnorderedAccessDescriptorDescription& desc, const std::string& name) = 0;
 		virtual IDescriptor* createConstantBufferDescriptor(IBuffer* buffer, const ConstantBufferDescriptorDescription& desc, const std::string& name) = 0;
 		virtual IDescriptor* createSampler(const SamplerDescription& desc, const std::string& name) = 0;
+		virtual IHeap* createHeap(const HeapDescription& desc, const std::string& name) = 0;
 
 		virtual uint32_t getAllocationSize(const rhi::TextureDescription& desc) = 0;
 	protected:

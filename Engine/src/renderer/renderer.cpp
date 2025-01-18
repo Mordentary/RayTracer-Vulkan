@@ -184,11 +184,11 @@ namespace SE
 
 		uploadBuffer(vertexBuffer, 0, rotatedCube.data(), vertexBufferSize);
 
-		ShaderResourceDescriptorDescription vertexBufferDescriptorDesc;
+		ShaderResourceViewDescriptorDescription vertexBufferDescriptorDesc;
 		vertexBufferDescriptorDesc.buffer.size = vertexBufferSize;
 		vertexBufferDescriptorDesc.buffer.offset = 0;
 		vertexBufferDescriptorDesc.type = ShaderResourceDescriptorType::RawBuffer;
-		vertexBufferDesc = m_Device->createShaderResourceDescriptor(vertexBuffer, vertexBufferDescriptorDesc, "VertexBufferDescriptor");
+		vertexBufferDesc = m_Device->createShaderResourceViewDescriptor(vertexBuffer, vertexBufferDescriptorDesc, "VertexBufferDescriptor");
 
 		//BufferDescription constantBufferWithIndicesDesc;
 		//constantBufferWithIndicesDesc.memoryType = MemoryType::GpuOnly;
@@ -391,7 +391,7 @@ namespace SE
 			{
 				const TextureUpload& upload = m_PendingTextureUploads[i];
 				commandList->textureBarrier(upload.texture,
-					rhi::ResourceAccessFlags::TransferDst, rhi::ResourceAccessFlags::ShaderRead);
+					rhi::ResourceAccessFlags::TransferDst, rhi::ResourceAccessFlags::MaskShaderRead);
 			}
 		}
 

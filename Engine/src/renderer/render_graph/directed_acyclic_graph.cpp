@@ -69,6 +69,7 @@ namespace SE
 			}
 		}
 
+		// cull the entire chain of nodes if there are no nodes that contribute to a final image
 		while (!stack.empty())
 		{
 			DAGNode* node = stack.back();
@@ -79,7 +80,10 @@ namespace SE
 
 			for (size_t i = 0; i < incoming.size(); ++i)
 			{
-				DAGNode* linked_node = getNode(incoming[i]->m_From).value();
+				auto optNode = getNode(incoming[i]->m_From);
+				SE_ASSERT(optNode.has_value(), "Graph node is null!");
+
+				DAGNode* linked_node = optNode.value();
 
 				if (--linked_node->m_RefCount == 0)
 				{

@@ -382,7 +382,7 @@ namespace rhi::vulkan
 		if (anySet(flags, ResourceAccessFlags::RenderTarget))
 			stage |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-		if (anySet(flags, ResourceAccessFlags::DepthStencil | ResourceAccessFlags::DepthStencilRead))
+		if (anySet(flags, ResourceAccessFlags::DepthStencilStorage | ResourceAccessFlags::DepthStencilRead))
 			stage |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
 
 		if (anySet(flags, ResourceAccessFlags::VertexShaderRead | ResourceAccessFlags::VertexShaderStorage))
@@ -409,7 +409,7 @@ namespace rhi::vulkan
 		if (anySet(flags, ResourceAccessFlags::ShadingRate))
 			stage |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
 
-		if (anySet(flags, ResourceAccessFlags::AccelerationStructureRead | ResourceAccessFlags::AccelerationStructureWrite))
+		if (anySet(flags, ResourceAccessFlags::AccelerationStructureRead | ResourceAccessFlags::AccelerationStructureStorage))
 			stage |= VK_PIPELINE_STAGE_2_ACCELERATION_STRUCTURE_BUILD_BIT_KHR;
 
 		if (anySet(flags, ResourceAccessFlags::Discard))
@@ -473,16 +473,16 @@ namespace rhi::vulkan
 		if (anySet(flags, ResourceAccessFlags::RenderTarget))
 			return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-		if (anySet(flags, ResourceAccessFlags::DepthStencil))
+		if (anySet(flags, ResourceAccessFlags::DepthStencilStorage))
 			return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
 		if (anySet(flags, ResourceAccessFlags::DepthStencilRead))
 			return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
 
-		if (anySet(flags, ResourceAccessFlags::ShaderRead))
+		if (anySet(flags, ResourceAccessFlags::MaskShaderRead))
 			return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
-		if (anySet(flags, ResourceAccessFlags::ShaderStorage))
+		if (anySet(flags, ResourceAccessFlags::MaskShaderStorage))
 			return VK_IMAGE_LAYOUT_GENERAL;
 
 		if (anySet(flags, ResourceAccessFlags::StorageClear))
@@ -511,16 +511,16 @@ namespace rhi::vulkan
 		if (anySet(flags, ResourceAccessFlags::RenderTarget))
 			access |= VK_ACCESS_2_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_2_COLOR_ATTACHMENT_WRITE_BIT;
 
-		if (anySet(flags, ResourceAccessFlags::DepthStencil))
+		if (anySet(flags, ResourceAccessFlags::DepthStencilStorage))
 			access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
 		if (anySet(flags, ResourceAccessFlags::DepthStencilRead))
 			access |= VK_ACCESS_2_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 
-		if (anySet(flags, ResourceAccessFlags::ShaderRead))
+		if (anySet(flags, ResourceAccessFlags::MaskShaderRead))
 			access |= VK_ACCESS_2_SHADER_SAMPLED_READ_BIT | VK_ACCESS_2_SHADER_STORAGE_READ_BIT;
 
-		if (anySet(flags, ResourceAccessFlags::ShaderStorage))
+		if (anySet(flags, ResourceAccessFlags::MaskShaderStorage))
 			access |= VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT;
 
 		if (anySet(flags, ResourceAccessFlags::StorageClear))
@@ -544,7 +544,7 @@ namespace rhi::vulkan
 		if (anySet(flags, ResourceAccessFlags::AccelerationStructureRead))
 			access |= VK_ACCESS_2_ACCELERATION_STRUCTURE_READ_BIT_KHR;
 
-		if (anySet(flags, ResourceAccessFlags::AccelerationStructureWrite))
+		if (anySet(flags, ResourceAccessFlags::AccelerationStructureStorage))
 			access |= VK_ACCESS_2_ACCELERATION_STRUCTURE_WRITE_BIT_KHR;
 
 		if (access == VK_ACCESS_2_NONE && !anySet(flags, ResourceAccessFlags::Present))
@@ -888,17 +888,5 @@ namespace rhi::vulkan
 		}
 		return { VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY,
 				VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY };
-	}
-
-	bool isStencilFormat(Format format)
-	{
-		switch (format) {
-		case Format::D24_UNORM_S8_UINT:
-		case Format::D32_SFLOAT_S8_UINT:
-		case Format::S8_UINT:
-			return true;
-		default:
-			return false;
-		}
 	}
 }

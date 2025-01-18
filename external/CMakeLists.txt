@@ -14,6 +14,13 @@ target_include_directories(vkbootstrap PUBLIC vkbootstrap)
 target_link_libraries(vkbootstrap PUBLIC volk $<$<BOOL:UNIX>:${CMAKE_DL_LIBS}>)
 set_property(TARGET vkbootstrap PROPERTY CXX_STANDARD 20)
 
+add_library(xxhash STATIC
+    xxHash/xxhash.c
+    xxHash/xxhash.h
+)
+target_include_directories(xxhash PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(xxhash PRIVATE c_std_99)
+
 set(VOLK_SOURCE_DIR volk)
 add_library(volk STATIC 
     ${VOLK_SOURCE_DIR}/volk.c
@@ -35,6 +42,8 @@ target_link_libraries(vma PRIVATE volk)
 
 add_library(stb_image STATIC stb_image/stb_image.cpp)
 target_include_directories(stb_image PUBLIC stb_image INTERFACE stb_image)
+
+
 
 add_library(dxcompiler SHARED IMPORTED)
 set_target_properties(dxcompiler PROPERTIES
