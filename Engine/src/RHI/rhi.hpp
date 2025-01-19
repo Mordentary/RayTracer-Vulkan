@@ -10,6 +10,8 @@
 #include "device.hpp"
 #include "heap.hpp"
 #include "fence.hpp"
+#include "pipeline.hpp"
+#include "shader.hpp"
 #include "command_list.hpp"
 #include <engine_core.h>
 

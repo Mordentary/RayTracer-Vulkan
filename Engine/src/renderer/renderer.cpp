@@ -34,10 +34,9 @@ namespace SE
 		desc.enableValidation = false;
 #endif
 		auto device = rhi::createDevice(desc);
-		SE_ASSERT(device, "Device creation is failed");
+		SE_ASSERT(device.get(), "Device creation is failed");
 		m_Device = std::move(device);
-
-		SE_ASSERT(m_Device, "Device is null");
+		SE_ASSERT(m_Device.get(), "Device is null");
 
 		rhi::SwapchainDescription swapchainDesc;
 		swapchainDesc.windowHandle = window_handle;
@@ -54,10 +53,10 @@ namespace SE
 		//Shader* shader = m_Device->createShader();
 		initFrameResources();
 
-		compiler = new ShaderCompiler(this);
+		m_Compiler = new ShaderCompiler(this);
 
 		std::vector<uint8_t> vsBinary;
-		bool vsSuccess = compiler->compile(
+		bool vsSuccess = m_Compiler->compile(
 			"shaders/defaultShader.hlsl",       // Path to HLSL file
 			"VSMain",            // Entry point for Vertex Shader
 			rhi::ShaderType::Vertex,
@@ -70,7 +69,7 @@ namespace SE
 		}
 
 		std::vector<uint8_t> psBinary;
-		bool psSuccess = compiler->compile(
+		bool psSuccess = m_Compiler->compile(
 			"shaders/defaultShader.hlsl",       // Path to HLSL file
 			"PSMain",            // Entry point for Vertex Shader
 			rhi::ShaderType::Pixel,
@@ -86,17 +85,17 @@ namespace SE
 		shaderDesc.type = ShaderType::Vertex;
 		shaderDesc.file = "defaultShader.hlsl";
 		shaderDesc.entryPoint = "VSMain";
-		IShader* shaderVS = m_Device->createShader(shaderDesc, vsBinary, "TestShaderVS");
+		m_TestShaderVS = Scoped<IShader>(m_Device->createShader(shaderDesc, vsBinary, "TestShaderVS"));
 		shaderDesc.type = ShaderType::Pixel;
 		shaderDesc.entryPoint = "PSMain";
-		IShader* shaderPS = m_Device->createShader(shaderDesc, psBinary, "TestShaderPS");
+		m_TestShaderPS = Scoped<IShader>(m_Device->createShader(shaderDesc, psBinary, "TestShaderPS"));
 
 		GraphicsPipelineDescription pipeDesc{};
-		pipeDesc.vertexShader = shaderVS;
-		pipeDesc.pixelShader = shaderPS;
+		pipeDesc.vertexShader = m_TestShaderVS.get();
+		pipeDesc.pixelShader = m_TestShaderPS.get();
 		pipeDesc.renderTargetFormat[0] = Format::R8G8B8A8_UNORM;
 		pipeDesc.depthStencilFormat = Format::D24_UNORM_S8_UINT;
-		m_DefaultPipeline = m_Device->createGraphicsPipelineState(pipeDesc, "TestGraphicsPipeline");
+		m_DefaultPipeline = Scoped<rhi::IPipelineState>(m_Device->createGraphicsPipelineState(pipeDesc, "TestGraphicsPipeline"));
 
 		std::vector<Vertex> cubeVertices = {
 			// Front Face (+Z)
@@ -180,15 +179,15 @@ namespace SE
 		vertexBufferDescription.size = vertexBufferSize;
 		vertexBufferDescription.usage = BufferUsageFlags::RawBuffer;
 		vertexBufferDescription.stride = sizeof(Vertex);
-		IBuffer* vertexBuffer = m_Device->createBuffer(vertexBufferDescription, "VertexBuffer");
+		m_VertexBuffer = Scoped<rhi::IBuffer>(m_Device->createBuffer(vertexBufferDescription, "VertexBuffer"));
 
-		uploadBuffer(vertexBuffer, 0, rotatedCube.data(), vertexBufferSize);
+		uploadBuffer(m_VertexBuffer.get(), 0, rotatedCube.data(), vertexBufferSize);
 
 		ShaderResourceViewDescriptorDescription vertexBufferDescriptorDesc;
 		vertexBufferDescriptorDesc.buffer.size = vertexBufferSize;
 		vertexBufferDescriptorDesc.buffer.offset = 0;
 		vertexBufferDescriptorDesc.type = ShaderResourceDescriptorType::RawBuffer;
-		vertexBufferDesc = m_Device->createShaderResourceViewDescriptor(vertexBuffer, vertexBufferDescriptorDesc, "VertexBufferDescriptor");
+		m_VertexBufferDescriptor = m_Device->createShaderResourceViewDescriptor(m_VertexBuffer.get(), vertexBufferDescriptorDesc, "VertexBufferDescriptor");
 
 		//BufferDescription constantBufferWithIndicesDesc;
 		//constantBufferWithIndicesDesc.memoryType = MemoryType::GpuOnly;
@@ -283,7 +282,7 @@ namespace SE
 		//renderPass.depth.stencilStoreOp = RenderPassStoreOp::DontCare;
 		//renderPass.depth.readOnly = false;
 		commandList->beginRenderPass(renderPass);
-		commandList->bindPipeline(m_DefaultPipeline);
+		commandList->bindPipeline(m_DefaultPipeline.get());
 		commandList->draw(36, 1);
 		commandList->endRenderPass();
 
@@ -404,7 +403,7 @@ namespace SE
 		FrameResources& frame = m_FrameResources[frameIndex];
 		ICommandList* commandList = frame.commandList.get();
 		SceneConstant scene;
-		scene.vertexDataIndex = vertexBufferDesc->getDescriptorArrayIndex();
+		scene.vertexDataIndex = m_VertexBufferDescriptor->getDescriptorArrayIndex();
 		commandList->setGraphicsPushConstants(2, &scene, sizeof(SceneConstant));
 
 		copyToBackBuffer(commandList);

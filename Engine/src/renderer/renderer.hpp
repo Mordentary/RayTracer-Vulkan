@@ -30,7 +30,11 @@ namespace SE
 		glm::vec2 m_RenderTargetSize{};
 		Scoped<rhi::ITexture> m_RenderTargetColor{};
 		Scoped<rhi::ITexture> m_RenderTargetDepth{};
-		rhi::IPipelineState* m_DefaultPipeline;
+		Scoped<rhi::IPipelineState> m_DefaultPipeline;
+
+		Scoped<rhi::IShader> m_TestShaderVS;
+		Scoped<rhi::IShader> m_TestShaderPS;
+		Scoped<rhi::IBuffer> m_VertexBuffer;
 
 		struct FrameResources {
 			uint64_t frameFenceValue = 0;
@@ -45,9 +49,9 @@ namespace SE
 		uint64_t m_CurrenFrameFenceValue = 0;
 		uint64_t m_CurrentUploadFenceValue = 0;
 		std::array<FrameResources, SE_MAX_FRAMES_IN_FLIGHT> m_FrameResources{};
-		rhi::IDescriptor* vertexBufferDesc = nullptr;
+		rhi::IDescriptor* m_VertexBufferDescriptor = nullptr;
 
-		ShaderCompiler* compiler;
+		ShaderCompiler* m_Compiler;
 		struct TextureUpload
 		{
 			rhi::ITexture* texture;
