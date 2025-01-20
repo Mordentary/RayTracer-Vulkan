@@ -1,7 +1,7 @@
 #pragma once
 #include "vulkan_core.hpp"
 
-#include "../types.hpp"
+#include "../rhi.hpp"
 
 namespace rhi::vulkan
 {

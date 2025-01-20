@@ -1,4 +1,5 @@
 #include "vulkan_command_list.hpp"
+#include "vulkan_command_list.hpp"
 #include "vulkan_device.hpp"
 #include "vulkan_swapchain.hpp"
 #include "vulkan_fence.hpp"
@@ -6,6 +7,7 @@
 #include "vulkan_descriptor.hpp"
 #include "vulkan_pipeline.hpp"
 #include "../types.hpp"
+#include <RHI\rhi.hpp>
 
 namespace rhi::vulkan {
 	VulkanCommandList::VulkanCommandList(VulkanDevice* device, CommandType type, const std::string& name)
@@ -286,6 +288,29 @@ namespace rhi::vulkan {
 
 	void VulkanCommandList::clearStorageBuffer(IResource* resource, IDescriptor* storage, const uint32_t* clearValue)
 	{
+	}
+
+	void VulkanCommandList::textureBarrier(ITexture* texture, uint32_t subResource, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter)
+	{
+		VkImageMemoryBarrier2 barrier = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2 };
+		barrier.image = static_cast<VkImage>(texture->getHandle());
+		barrier.srcStageMask = getVkStageMask(accessBefore);
+		barrier.dstStageMask = getVkStageMask(accessAfter);
+		barrier.srcAccessMask = getVkAccessMask(accessBefore);
+		barrier.dstAccessMask = getVkAccessMask(accessAfter);
+		barrier.oldLayout = getVkImageLayout(accessBefore);
+		barrier.newLayout = anySet(accessAfter, ResourceAccessFlags::Discard) ? barrier.oldLayout : getVkImageLayout(accessAfter);
+		barrier.subresourceRange.aspectMask = getVkAspectMask(texture->getDescription().format);
+
+		uint32_t mip, slice;
+		decomposeSubresource(texture->getDescription(), subResource, mip, slice);
+
+		barrier.subresourceRange.baseMipLevel = mip;
+		barrier.subresourceRange.levelCount = 1;
+		barrier.subresourceRange.baseArrayLayer = slice;
+		barrier.subresourceRange.layerCount = 1;
+
+		m_ImageBarriers.push_back(barrier);
 	}
 
 	void VulkanCommandList::textureBarrier(ITexture* texture, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) {

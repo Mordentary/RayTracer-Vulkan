@@ -48,37 +48,37 @@ namespace rhi::vulkan
 		}
 
 		switch (m_Description.type) {
-		case ShaderResourceDescriptorType::Texture2D: {
+		case ShaderResourceViewDescriptorType::Texture2D: {
 			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
 			vkCreateImageView(device, &imageViewCreateInfo, nullptr, &m_ImageView);
 			imageInfo.imageView = m_ImageView;
 			break;
 		}
-		case ShaderResourceDescriptorType::Texture2DArray: {
+		case ShaderResourceViewDescriptorType::Texture2DArray: {
 			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D_ARRAY;
 			vkCreateImageView(device, &imageViewCreateInfo, nullptr, &m_ImageView);
 			imageInfo.imageView = m_ImageView;
 			break;
 		}
-		case ShaderResourceDescriptorType::Texture3D: {
+		case ShaderResourceViewDescriptorType::Texture3D: {
 			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_3D;
 			vkCreateImageView(device, &imageViewCreateInfo, nullptr, &m_ImageView);
 			imageInfo.imageView = m_ImageView;
 			break;
 		}
-		case ShaderResourceDescriptorType::TextureCube: {
+		case ShaderResourceViewDescriptorType::TextureCube: {
 			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE;
 			vkCreateImageView(device, &imageViewCreateInfo, nullptr, &m_ImageView);
 			imageInfo.imageView = m_ImageView;
 			break;
 		}
-		case ShaderResourceDescriptorType::TextureCubeArray: {
+		case ShaderResourceViewDescriptorType::TextureCubeArray: {
 			imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
 			vkCreateImageView(device, &imageViewCreateInfo, nullptr, &m_ImageView);
 			imageInfo.imageView = m_ImageView;
 			break;
 		}
-		case ShaderResourceDescriptorType::StructuredBuffer: {
+		case ShaderResourceViewDescriptorType::StructuredBuffer: {
 			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::StructuredBuffer));
 			assert(m_Description.format == Format::Unknown);
@@ -94,7 +94,7 @@ namespace rhi::vulkan
 			descriptorSize = descriptorBufferProperties.robustStorageBufferDescriptorSize;
 			break;
 		}
-		case ShaderResourceDescriptorType::FormattedBuffer: {
+		case ShaderResourceViewDescriptorType::FormattedBuffer: {
 			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::FormattedBuffer));
 			assert(m_Description.buffer.offset % bufferDesc.stride == 0);
@@ -110,7 +110,7 @@ namespace rhi::vulkan
 			descriptorSize = descriptorBufferProperties.robustUniformTexelBufferDescriptorSize;
 			break;
 		}
-		case ShaderResourceDescriptorType::RawBuffer: {
+		case ShaderResourceViewDescriptorType::RawBuffer: {
 			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::RawBuffer));
 			assert(bufferDesc.stride % 4 == 0);

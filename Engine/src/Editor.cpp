@@ -28,7 +28,7 @@ namespace SE {
 
 		// Enable docking and viewports
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-		io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+		//io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 		io.ConfigWindowsMoveFromTitleBarOnly = false;
 
 		initImGuiStyle();
@@ -93,16 +93,60 @@ namespace SE {
 	void Editor::initImGuiStyle() {
 		ImGui::StyleColorsDark();
 		ImGuiStyle& style = ImGui::GetStyle();
-		style.WindowRounding = 5.0f;      // Rounded corners
-		style.FrameRounding = 4.0f;
-		style.GrabRounding = 4.0f;
-		style.WindowBorderSize = 1.0f;    // Visible borders
-		style.FrameBorderSize = 1.0f;
-		style.WindowPadding = ImVec2(8, 8);
 
-		if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-			style.Colors[ImGuiCol_WindowBg].w = 0.9f;  // Slightly transparent windows
-		}
+		style.WindowRounding = 8.0f;
+		style.FrameRounding = 6.0f;
+		style.GrabRounding = 6.0f;
+		style.WindowBorderSize = 1.5f;
+		style.FrameBorderSize = 1.0f;
+		style.WindowPadding = ImVec2(10, 10);
+		style.FramePadding = ImVec2(6, 6);
+		style.ItemSpacing = ImVec2(8, 8);
+		style.ItemInnerSpacing = ImVec2(6, 6);
+		style.ScrollbarSize = 15.0f;
+
+		// Customize colors
+		ImVec4* colors = style.Colors;
+
+		// Window Background, slightly darkened.
+		colors[ImGuiCol_WindowBg] = ImVec4(0.1f, 0.105f, 0.11f, 1.0f);
+
+		// Headers (for collapsible sections, etc.)
+		colors[ImGuiCol_Header] = ImVec4(0.2f, 0.205f, 0.21f, 1.0f);
+		colors[ImGuiCol_HeaderHovered] = ImVec4(0.3f, 0.305f, 0.31f, 1.0f);
+		colors[ImGuiCol_HeaderActive] = ImVec4(0.15f, 0.1505f, 0.151f, 1.0f);
+
+		// Buttons (with borders)
+		colors[ImGuiCol_Button] = ImVec4(0.2f, 0.205f, 0.21f, 1.0f);
+		colors[ImGuiCol_ButtonHovered] = ImVec4(0.3f, 0.305f, 0.31f, 1.0f);
+		colors[ImGuiCol_ButtonActive] = ImVec4(0.15f, 0.1505f, 0.151f, 1.0f);
+
+		// Frame Backgrounds for text inputs, etc.
+		colors[ImGuiCol_FrameBg] = ImVec4(0.1f, 0.105f, 0.11f, 1.0f);
+		colors[ImGuiCol_FrameBgHovered] = ImVec4(0.2f, 0.205f, 0.21f, 1.0f);
+		colors[ImGuiCol_FrameBgActive] = ImVec4(0.3f, 0.305f, 0.31f, 1.0f);
+
+		// Tabs
+		colors[ImGuiCol_Tab] = ImVec4(0.15f, 0.1505f, 0.151f, 1.0f);
+		colors[ImGuiCol_TabHovered] = ImVec4(0.38f, 0.3805f, 0.381f, 1.0f);
+		colors[ImGuiCol_TabActive] = ImVec4(0.28f, 0.2805f, 0.281f, 1.0f);
+		colors[ImGuiCol_TabUnfocused] = ImVec4(0.15f, 0.1505f, 0.151f, 1.0f);
+		colors[ImGuiCol_TabUnfocusedActive] = ImVec4(0.2f, 0.205f, 0.21f, 1.0f);
+
+		// Text Colors
+		colors[ImGuiCol_Text] = ImVec4(0.95f, 0.96f, 0.98f, 1.0f);
+		colors[ImGuiCol_TextDisabled] = ImVec4(0.36f, 0.42f, 0.47f, 1.0f);
+
+		// Border Colors
+		colors[ImGuiCol_Border] = ImVec4(0.08f, 0.09f, 0.1f, 1.0f);
+		colors[ImGuiCol_BorderShadow] = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		// Scrollbar colors
+		colors[ImGuiCol_ScrollbarBg] = ImVec4(0.1f, 0.105f, 0.11f, 1.0f);
+		colors[ImGuiCol_ScrollbarGrab] = ImVec4(0.2f, 0.205f, 0.21f, 1.0f);
+		colors[ImGuiCol_ScrollbarGrabHovered] = ImVec4(0.3f, 0.305f, 0.31f, 1.0f);
+		colors[ImGuiCol_ScrollbarGrabActive] = ImVec4(0.4f, 0.405f, 0.41f, 1.0f);
+		colors[ImGuiCol_WindowBg].w = 0.95f;
 	}
 
 	void Editor::createViewportResources()

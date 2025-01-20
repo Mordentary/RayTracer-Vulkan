@@ -34,6 +34,8 @@ namespace rhi::vulkan
 		//void updateTileMappings(Texture* texture, Heap* heap, uint32_t mappingCount, const TileMapping* mappings) override;
 
 		// Barriers
+
+		void textureBarrier(ITexture* texture, uint32_t subResource, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) override;
 		void textureBarrier(ITexture* texture, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) override;
 		void bufferBarrier(IBuffer* buffer, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) override;
 		void globalBarrier(ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) override;

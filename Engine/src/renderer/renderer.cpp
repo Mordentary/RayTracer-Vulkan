@@ -186,7 +186,7 @@ namespace SE
 		ShaderResourceViewDescriptorDescription vertexBufferDescriptorDesc;
 		vertexBufferDescriptorDesc.buffer.size = vertexBufferSize;
 		vertexBufferDescriptorDesc.buffer.offset = 0;
-		vertexBufferDescriptorDesc.type = ShaderResourceDescriptorType::RawBuffer;
+		vertexBufferDescriptorDesc.type = ShaderResourceViewDescriptorType::RawBuffer;
 		m_VertexBufferDescriptor = m_Device->createShaderResourceViewDescriptor(m_VertexBuffer.get(), vertexBufferDescriptorDesc, "VertexBufferDescriptor");
 
 		//BufferDescription constantBufferWithIndicesDesc;

@@ -1,6 +1,6 @@
 #pragma once
-#include "render_graph.hpp"
 #include "rhi/rhi.hpp"
+#include"directed_acyclic_graph.hpp"
 namespace SE
 {
 	class RenderGraphEdge : public DAGEdge
@@ -36,9 +36,9 @@ namespace SE
 			m_ClearColor[2] = clearColor[2];
 			m_ClearColor[3] = clearColor[3];
 		}
-		uint32_t GetColorIndex() const { return m_ColorIndex; }
-		rhi::RenderPassLoadOp GetLoadOp() const { return m_LoadOp; }
-		const float* GetClearColor() const { return m_ClearColor; }
+		uint32_t getColorIndex() const { return m_ColorIndex; }
+		rhi::RenderPassLoadOp getLoadOp() const { return m_LoadOp; }
+		const float* getClearColor() const { return m_ClearColor; }
 
 	private:
 		uint32_t m_ColorIndex;
@@ -60,10 +60,10 @@ namespace SE
 			m_ReadOnly = (usage & rhi::ResourceAccessFlags::DepthStencilRead) ? true : false;
 		}
 
-		rhi::RenderPassLoadOp getDepthLoadOp() const { return m_depthLoadOp; };
-		rhi::RenderPassLoadOp getStencilLoadOp() const { return m_stencilLoadOp; };
-		float getClearDepth() const { return m_clearDepth; }
-		uint32_t getClearStencil() const { return m_clearStencil; };
+		rhi::RenderPassLoadOp getDepthLoadOp() const { return m_DepthLoadOp; };
+		rhi::RenderPassLoadOp getStencilLoadOp() const { return m_StencilLoadOp; };
+		float getClearDepth() const { return m_ClearDepth; }
+		uint32_t getClearStencil() const { return m_ClearStencil; };
 		bool isReadOnly() const { return m_ReadOnly; }
 
 	private:

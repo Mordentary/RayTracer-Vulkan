@@ -452,7 +452,7 @@ namespace rhi {
 		return lhs;
 	};
 
-	enum class ShaderResourceDescriptorType {
+	enum class ShaderResourceViewDescriptorType {
 		Texture2D,
 		Texture2DArray,
 		Texture3D,
@@ -481,7 +481,7 @@ namespace rhi {
 
 	struct ShaderResourceViewDescriptorDescription
 	{
-		ShaderResourceDescriptorType type = ShaderResourceDescriptorType::Texture2D;
+		ShaderResourceViewDescriptorType type = ShaderResourceViewDescriptorType::Texture2D;
 		Format format = Format::Unknown;
 
 		union
@@ -563,6 +563,7 @@ namespace rhi {
 	struct BufferDescription {
 		uint64_t size = 0;
 		uint32_t stride = 0;
+		Format format = Format::Unknown;
 		MemoryType memoryType = MemoryType::GpuOnly;
 		BufferUsageFlags usage = BufferUsageFlags::None;
 		bool mapped = false;           // Whether buffer should be persistently mapped
@@ -682,30 +683,5 @@ namespace rhi {
 	constexpr T alignToPowerOfTwo(T value, T alignment) {
 		SE_ASSERT_NOMSG((alignment & (alignment - 1)) == 0); // Verify power of 2
 		return (value + (alignment - 1)) & ~(alignment - 1);
-	}
-
-	inline bool isStencilFormat(Format format)
-	{
-		switch (format) {
-		case Format::D24_UNORM_S8_UINT:
-		case Format::D32_SFLOAT_S8_UINT:
-		case Format::S8_UINT:
-			return true;
-		default:
-			return false;
-		}
-	}
-
-	inline bool isDepthFormat(Format format)
-	{
-		switch (format) {
-		case Format::D24_UNORM_S8_UINT:
-		case Format::D32_SFLOAT_S8_UINT:
-		case Format::D32_SFLOAT:
-		case Format::D16_UNORM:
-			return true;
-		default:
-			return false;
-		}
 	}
 }

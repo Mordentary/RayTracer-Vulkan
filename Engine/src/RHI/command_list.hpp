@@ -36,6 +36,7 @@ namespace rhi
 		//virtual void updateTileMappings(Texture* dstTexture, Heap* dstHeap, uint32_t mappingCount, const TileMapping* mappings) = 0;
 
 		virtual void textureBarrier(ITexture* texture, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) = 0;
+		virtual void textureBarrier(ITexture* texture, uint32_t subResource, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) = 0;
 		virtual void bufferBarrier(IBuffer* buffer, ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) = 0;
 		virtual void globalBarrier(ResourceAccessFlags accessBefore, ResourceAccessFlags accessAfter) = 0;
 		virtual void flushBarriers() = 0;
