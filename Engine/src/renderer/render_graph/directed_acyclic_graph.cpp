@@ -4,8 +4,8 @@
 namespace SE
 {
 	DAGEdge::DAGEdge(DirectedAcyclicGraph& graph, DAGNode* from, DAGNode* to) :
-		m_From(from->getID()),
-		m_To(to->getID())
+		m_From(from->getId()),
+		m_To(to->getId())
 	{
 		SE_ASSERT(graph.getNode(m_From) == from);
 		SE_ASSERT(graph.getNode(m_To) == to);
@@ -14,7 +14,7 @@ namespace SE
 
 	DAGNode::DAGNode(DirectedAcyclicGraph& graph)
 	{
-		m_NodeID = graph.generateNodeId();
+		m_NodeId = graph.generateNodeId();
 
 		graph.registerNode(this);
 	}
@@ -33,7 +33,7 @@ namespace SE
 
 	void DirectedAcyclicGraph::registerNode(DAGNode* node)
 	{
-		SE_ASSERT(node->getID() == m_Nodes.size());
+		SE_ASSERT(node->getId() == m_Nodes.size());
 
 		m_Nodes.push_back(node);
 	}
@@ -105,7 +105,7 @@ namespace SE
 		for (size_t i = 0; i < m_Edges.size(); i++)
 		{
 			auto& edge = m_Edges[i];
-			if (edge->m_To == node->getID())
+			if (edge->m_To == node->getId())
 			{
 				edges.push_back(edge);
 			}
@@ -119,7 +119,7 @@ namespace SE
 		for (size_t i = 0; i < m_Edges.size(); ++i)
 		{
 			auto& edge = m_Edges[i];
-			if (edge->m_From == node->getID())
+			if (edge->m_From == node->getId())
 			{
 				edges.push_back(edge);
 			}

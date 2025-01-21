@@ -48,6 +48,44 @@ namespace SE
 		bool m_isOutput = false;
 	};
 
+	class RenderGraphResourceNode : public DAGNode
+	{
+	public:
+		RenderGraphResourceNode(DirectedAcyclicGraph& graph, RenderGraphResource* resource, uint32_t version) :
+			DAGNode(graph),
+			m_graph(graph)
+		{
+			m_pResource = resource;
+			m_version = version;
+		}
+
+		RenderGraphResource* getResource() const { return m_pResource; }
+		uint32_t getVersion() const { return m_version; }
+		DirectedAcyclicGraph& getDAG() const { return m_graph; }
+
+		//virtual std::string getGraphvizName() const override
+		//{
+		//	std::string s = m_pResource->getName();
+		//	s.append("\nversion:");
+		//	s.append(std::to_string(m_version));
+		//	if (m_version > 0)
+		//	{
+		//		std::vector<DAGEdge*> incoming_edges;
+		//		m_graph.getIncomingEdges(this, incoming_edges);
+		//		SE_ASSERT(incoming_edges.size() == 1);
+		//		uint32_t subresource = ((RenderGraphEdge*)incoming_edges[0])->getSubresource();
+		//		s.append("\nsubresource:");
+		//		s.append(std::to_string(subresource));
+		//	}
+		//	return s;
+		//}
+
+	private:
+		RenderGraphResource* m_pResource;
+		uint32_t m_version;
+		DirectedAcyclicGraph& m_graph;
+	};
+
 	class RGTexture : public RenderGraphResource
 	{
 	public:

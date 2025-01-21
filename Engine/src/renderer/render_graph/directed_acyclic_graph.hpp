@@ -16,8 +16,8 @@ namespace SE
 		DAGEdge(DirectedAcyclicGraph& graph, DAGNode* from, DAGNode* to);
 		virtual ~DAGEdge() = default;
 
-		DAGNodeID GetFromNode() const { return m_From; }
-		DAGNodeID GetToNode() const { return m_To; }
+		DAGNodeID getFromNode() const { return m_From; }
+		DAGNodeID getToNode() const { return m_To; }
 
 	private:
 		const DAGNodeID m_From;
@@ -31,13 +31,13 @@ namespace SE
 		DAGNode(DirectedAcyclicGraph& graph);
 		virtual ~DAGNode() = default;
 
-		DAGNodeID getID() const { return m_NodeID; }
+		DAGNodeID getId() const { return m_NodeId; }
 		void markTarget() { m_RefCount = TARGET; }
 		bool isTarget() const { return m_RefCount >= TARGET; }
 		bool isCulled() const { return m_RefCount == 0; }
 		uint32_t getRefCount() const { return isTarget() ? 1 : m_RefCount; }
 	private:
-		DAGNodeID m_NodeID;
+		DAGNodeID m_NodeId;
 		uint32_t m_RefCount = 0;
 		static const uint32_t TARGET = 0x80000000u;
 	};

@@ -25,7 +25,7 @@ namespace SE
 	{
 	public:
 		RenderGraphEdgeColorAttachment(DirectedAcyclicGraph& graph, DAGNode* from, DAGNode* to, rhi::ResourceAccessFlags usage, uint32_t subresource,
-			uint32_t colorIndex, rhi::RenderPassLoadOp loadOp, const float4& clearColor) :
+			uint32_t colorIndex, rhi::RenderPassLoadOp loadOp, const float* clearColor) :
 			RenderGraphEdge(graph, from, to, usage, subresource)
 		{
 			m_ColorIndex = colorIndex;
@@ -57,7 +57,7 @@ namespace SE
 			m_StencilLoadOp = stencilLoadOp;
 			m_ClearDepth = clearDepth;
 			m_ClearStencil = clearStencil;
-			m_ReadOnly = (usage & rhi::ResourceAccessFlags::DepthStencilRead) ? true : false;
+			m_ReadOnly = rhi::anySet(usage, rhi::ResourceAccessFlags::DepthStencilRead) ? true : false;
 		}
 
 		rhi::RenderPassLoadOp getDepthLoadOp() const { return m_DepthLoadOp; };

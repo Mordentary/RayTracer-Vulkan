@@ -18,6 +18,7 @@ namespace rhi {
 	static const uint32_t SE_MAX_SAMPLER_DESCRIPTOR_COUNT = 64;
 	static const uint32_t SE_MAX_UBV_BINDINGS = 3; //push constants in slot 0
 	static const uint32_t SE_MAX_PUSH_CONSTANTS = 8;
+	static const uint32_t RHI_ALL_SUB_RESOURCE = 0xFFFFFFFF;
 
 	// Enums
 	enum class RenderBackend {
