@@ -191,7 +191,7 @@ namespace SE
 	void RenderGraphResourceAllocator::allocateHeap(uint32_t size)
 	{
 		rhi::HeapDescription heapDesc;
-		heapDesc.size = rhi::alignToPowerOfTwo(size, 64u * 1024);
+		heapDesc.size = SE::alignToPowerOfTwo(size, 64u * 1024);
 
 		std::string heapName = fmt::format("RG Heap {:.1f} MB", heapDesc.size / (1024.0f * 1024.0f)).c_str();
 

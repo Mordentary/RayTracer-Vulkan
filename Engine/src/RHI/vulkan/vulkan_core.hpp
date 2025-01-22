@@ -1,6 +1,9 @@
 #pragma once
-#include <volk/volk.h>
+#define VK_NO_PROTOTYPES
+#include <volk\volk.h>
+#define VMA_STATIC_VULKAN_FUNCTIONS 0
 #include <vk_mem_alloc.h>
+
 #include <type_traits>
 
 #include "../types.hpp"

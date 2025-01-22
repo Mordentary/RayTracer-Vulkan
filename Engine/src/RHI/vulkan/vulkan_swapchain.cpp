@@ -1,6 +1,6 @@
 #include "vulkan_swapchain.hpp"
 #include "vulkan_texture.hpp"
-
+#include"SDL2\SDL_vulkan.h"
 namespace rhi::vulkan {
 	VulkanSwapchain::VulkanSwapchain(VulkanDevice* pDevice, const SwapchainDescription& desc,
 		const std::string& name)

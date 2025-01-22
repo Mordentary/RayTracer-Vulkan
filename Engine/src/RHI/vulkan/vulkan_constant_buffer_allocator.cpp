@@ -39,7 +39,7 @@ namespace rhi::vulkan {
 		SE_ASSERT_NOMSG(m_AllocatedSize + size <= m_BufferSize);
 		*cpuAddress = static_cast<char*>(m_CpuAddress) + m_AllocatedSize;
 		*gpuAddress = m_GpuAddress + m_AllocatedSize;
-		m_AllocatedSize += alignToPowerOfTwo<uint32_t>(size, 256);
+		m_AllocatedSize += SE::alignToPowerOfTwo<uint32_t>(size, 256);
 	}
 
 	void VulkanConstantBufferAllocator::reset()

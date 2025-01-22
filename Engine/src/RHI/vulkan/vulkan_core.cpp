@@ -1,6 +1,9 @@
 #pragma once
 #include "vulkan_core.hpp"
-
+#define VOLK_IMPLEMENTATION
+#include <volk/volk.h>
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
 #include "../rhi.hpp"
 
 namespace rhi::vulkan

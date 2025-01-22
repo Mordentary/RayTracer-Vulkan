@@ -147,7 +147,7 @@ namespace SE
 		SE_ASSERT(!isImported());
 
 		const rhi::BufferDescription& bufferDesc = m_pBuffer->getDescription();
-		SE_ASSERT(bufferDesc.usage, rhi::BufferUsageFlags::StorageBuffer);
+		SE_ASSERT(anySet(bufferDesc.usage, rhi::BufferUsageFlags::StorageBuffer));
 
 		rhi::UnorderedAccessDescriptorDescription desc;
 		desc.format = bufferDesc.format;

@@ -172,10 +172,8 @@ namespace SE {
 	void LogCritical(const char* fmtStr, Args&&... args) {
 		Logger::getInstance().critical(fmtStr, std::forward<Args>(args)...);
 	}
-
-	// Assertion macros
-#if defined(_DEBUG) || !defined(NDEBUG)
 	namespace detail {
+		// This is the function that the macro will call.
 		template<typename... Args>
 		inline void se_assert_impl(bool condition,
 			const char* exprStr,
@@ -183,7 +181,7 @@ namespace SE {
 			Args&&... args)
 		{
 			if (!condition) {
-				// If no extra arguments at all, use a default message
+				// If no extra arguments, use a default message
 				if constexpr (sizeof...(args) == 0) {
 					SE::Logger::getInstance().assertFailed(
 						exprStr,
@@ -192,8 +190,8 @@ namespace SE {
 						exprStr
 					);
 				}
-				// Else forward all user-supplied arguments
 				else {
+					// Forward user-supplied arguments
 					SE::Logger::getInstance().assertFailed(
 						exprStr,
 						loc,
@@ -203,9 +201,11 @@ namespace SE {
 			}
 		}
 	}
-
+}
+// Assertion macros
+#if defined(_DEBUG) || !defined(NDEBUG)
 #define SE_ASSERT(expr, ...) \
-    SE::detail::se_assert_impl((expr), #expr, std::source_location::current(), ##__VA_ARGS__)
+    ::SE::detail::se_assert_impl((expr), #expr, std::source_location::current(), ##__VA_ARGS__)
 
 #define SE_ASSERT_MSG(expr, msg) SE_ASSERT(expr, msg)
 
@@ -245,4 +245,3 @@ namespace SE {
         } while(0)
 
 #define VK_CHECK(call) VK_CHECK_LOG(call, "Vulkan call failed: {}", #call)
-} // namespace SE

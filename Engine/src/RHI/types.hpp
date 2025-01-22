@@ -680,9 +680,4 @@ namespace rhi {
 		using underlying = typename std::underlying_type<Enum>::type;
 		return (static_cast<underlying>(flags) & static_cast<underlying>(mask)) != 0;
 	}
-	template<typename T>
-	constexpr T alignToPowerOfTwo(T value, T alignment) {
-		SE_ASSERT_NOMSG((alignment & (alignment - 1)) == 0); // Verify power of 2
-		return (value + (alignment - 1)) & ~(alignment - 1);
-	}
 }

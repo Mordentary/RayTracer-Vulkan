@@ -1,10 +1,5 @@
 #include "vulkan_device.hpp"
 #include "vulkan_device.hpp"
-#include <VkBootstrap.h>
-#define VOLK_IMPLEMENTATION
-#include <volk/volk.h>
-#define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
 #include "vulkan_texture.hpp"
 #include "vulkan_core.hpp"
 #include "vulkan_swapchain.hpp"
@@ -16,7 +11,7 @@
 #include "vulkan_command_list.hpp"
 #include "vulkan_descriptor.hpp"
 #include "vulkan_heap.hpp"
-
+#include <VkBootstrap.h>
 namespace rhi::vulkan {
 	namespace
 	{

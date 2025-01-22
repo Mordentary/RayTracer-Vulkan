@@ -1,5 +1,7 @@
-// SE/src/pch.h
 #pragma once
+
+// Disable Vulkan prototypes globally
+#define VK_NO_PROTOTYPES
 
 // **Standard Library Headers**
 #include <algorithm>
@@ -20,6 +22,7 @@
 #include <sstream>
 #include <regex>
 #include <filesystem>
+
 // **Third-Party Libraries**
 
 // GLM - Mathematics library for graphics applications
@@ -28,14 +31,10 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/transform.hpp>
+#include <utils/math.hpp>
 
 // Vulkan Headers
-
-#include"volk\volk.h"
 #include <engine_core.h>
-
-// Vulkan Memory Allocator
-#include <vk_mem_alloc.h>
 
 // vk-bootstrap - Simplifies Vulkan setup
 #include <VkBootstrap.h>
@@ -47,9 +46,9 @@
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <fmt/color.h>
+
 // SDL2 - Cross-platform development library
 #include <SDL.h>
-#include <SDL_vulkan.h>
 
 // ImGui - Immediate Mode GUI
 #include <imgui.h>

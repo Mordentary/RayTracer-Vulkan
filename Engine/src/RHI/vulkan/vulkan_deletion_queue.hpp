@@ -1,5 +1,4 @@
 #pragma once
-
 #include "vulkan_core.hpp"
 #include <queue>
 

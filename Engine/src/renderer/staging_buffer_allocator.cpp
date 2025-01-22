@@ -27,7 +27,7 @@ namespace SE
 		buffer.size = size;
 		buffer.offset = m_AllocatedSize;
 
-		m_AllocatedSize += rhi::alignToPowerOfTwo<uint32_t>(size, 256);
+		m_AllocatedSize += SE::alignToPowerOfTwo<uint32_t>(size, 256);
 		m_LastAllocatedFrame = m_Renderer->getFrameID();
 
 		return buffer;
