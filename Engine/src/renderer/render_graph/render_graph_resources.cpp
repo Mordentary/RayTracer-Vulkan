@@ -1,17 +1,43 @@
 #include "render_graph_resources.hpp"
 #include "render_graph.hpp"
+#include "render_graph_nodes_edges.hpp"
+
 namespace SE
 {
-	RGTexture::RGTexture(RenderGraphResourceAllocator& allocator, const std::string& name, const Desc& desc) :
-		RenderGraphResource(name),
-		m_Allocator(allocator)
+	//=======================================================
+	// RenderGraphResource default resolve
+	//=======================================================
+	void RenderGraphResource::resolve(RenderGraphEdge* edge, RenderGraphPassBase* pass)
+	{
+		// If pass->getId() is higher than the last pass that used it, update final usage
+		if (pass->getId() >= m_LastPass)
+		{
+			m_LastState = edge->getUsage();
+		}
+		m_FirstPass = std::min(m_FirstPass, pass->getId());
+		m_LastPass = std::max(m_LastPass, pass->getId());
+
+		// If used in async compute, we must also factor in any queue transitions
+		if (pass->getType() == RenderPassType::AsyncCompute)
+		{
+			m_FirstPass = std::min(m_FirstPass, pass->getWaitGraphicsPassID());
+			m_LastPass = std::max(m_LastPass, pass->getSignalGraphicsPassID());
+		}
+	}
+
+	//=======================================================
+	// RGTexture
+	//=======================================================
+	RGTexture::RGTexture(RenderGraphResourceAllocator& allocator, const std::string& name, const Desc& desc)
+		: RenderGraphResource(name)
+		, m_Allocator(allocator)
 	{
 		m_Description = desc;
 	}
 
-	RGTexture::RGTexture(RenderGraphResourceAllocator& allocator, rhi::ITexture* texture, rhi::ResourceAccessFlags state) :
-		RenderGraphResource(texture->getDebugName()),
-		m_Allocator(allocator)
+	RGTexture::RGTexture(RenderGraphResourceAllocator& allocator, rhi::ITexture* texture, rhi::ResourceAccessFlags state)
+		: RenderGraphResource(texture->getDebugName())
+		, m_Allocator(allocator)
 	{
 		m_Description = texture->getDescription();
 		m_pTexture = texture;
@@ -37,20 +63,16 @@ namespace SE
 	rhi::IDescriptor* RGTexture::getSRV()
 	{
 		SE_ASSERT(!isImported());
-
 		rhi::ShaderResourceViewDescriptorDescription desc;
 		desc.format = m_pTexture->getDescription().format;
-
 		return m_Allocator.getDescriptor(m_pTexture, desc);
 	}
 
 	rhi::IDescriptor* RGTexture::getUAV()
 	{
 		SE_ASSERT(!isImported());
-
 		rhi::UnorderedAccessDescriptorDescription desc;
 		desc.format = m_pTexture->getDescription().format;
-
 		return m_Allocator.getDescriptor(m_pTexture, desc);
 	}
 
@@ -74,12 +96,15 @@ namespace SE
 			}
 			else
 			{
-				m_pTexture = m_Allocator.allocateTexture(m_FirstPass, m_LastPass, m_LastState, m_Description, m_Name, m_InitialState);
+				m_pTexture = m_Allocator.allocateTexture(
+					m_FirstPass, m_LastPass, m_LastState, m_Description, m_Name, m_InitialState);
 			}
 		}
 	}
 
-	void RGTexture::barrier(rhi::ICommandList* pCommandList, uint32_t subresource, rhi::ResourceAccessFlags acess_before, rhi::ResourceAccessFlags acess_after)
+	void RGTexture::barrier(rhi::ICommandList* pCommandList, uint32_t subresource,
+		rhi::ResourceAccessFlags acess_before,
+		rhi::ResourceAccessFlags acess_after)
 	{
 		pCommandList->textureBarrier(m_pTexture, subresource, acess_before, acess_after);
 	}
@@ -89,16 +114,19 @@ namespace SE
 		return m_Allocator.getAliasedPrevResource(m_pTexture, m_FirstPass, lastUsedState);
 	}
 
-	RGBuffer::RGBuffer(RenderGraphResourceAllocator& allocator, const std::string& name, const Desc& desc) :
-		RenderGraphResource(name),
-		m_Allocator(allocator)
+	//=======================================================
+	// RGBuffer
+	//=======================================================
+	RGBuffer::RGBuffer(RenderGraphResourceAllocator& allocator, const std::string& name, const Desc& desc)
+		: RenderGraphResource(name)
+		, m_Allocator(allocator)
 	{
 		m_Description = desc;
 	}
 
-	RGBuffer::RGBuffer(RenderGraphResourceAllocator& allocator, rhi::IBuffer* buffer, rhi::ResourceAccessFlags state) :
-		RenderGraphResource(buffer->getDebugName()),
-		m_Allocator(allocator)
+	RGBuffer::RGBuffer(RenderGraphResourceAllocator& allocator, rhi::IBuffer* buffer, rhi::ResourceAccessFlags state)
+		: RenderGraphResource(buffer->getDebugName())
+		, m_Allocator(allocator)
 	{
 		m_Description = buffer->getDescription();
 		m_pBuffer = buffer;
@@ -117,24 +145,17 @@ namespace SE
 	rhi::IDescriptor* RGBuffer::getSRV()
 	{
 		SE_ASSERT(!isImported());
-
 		const rhi::BufferDescription& bufferDesc = m_pBuffer->getDescription();
 
 		rhi::ShaderResourceViewDescriptorDescription desc;
 		desc.format = bufferDesc.format;
 
 		if (rhi::anySet(bufferDesc.usage, rhi::BufferUsageFlags::StructuredBuffer))
-		{
 			desc.type = rhi::ShaderResourceViewDescriptorType::StructuredBuffer;
-		}
 		else if (rhi::anySet(bufferDesc.usage, rhi::BufferUsageFlags::FormattedBuffer))
-		{
 			desc.type = rhi::ShaderResourceViewDescriptorType::FormattedBuffer;
-		}
 		else if (rhi::anySet(bufferDesc.usage, rhi::BufferUsageFlags::RawBuffer))
-		{
 			desc.type = rhi::ShaderResourceViewDescriptorType::RawBuffer;
-		}
 
 		desc.buffer.offset = 0;
 		desc.buffer.size = bufferDesc.size;
@@ -145,25 +166,18 @@ namespace SE
 	rhi::IDescriptor* RGBuffer::getUAV()
 	{
 		SE_ASSERT(!isImported());
-
 		const rhi::BufferDescription& bufferDesc = m_pBuffer->getDescription();
-		SE_ASSERT(anySet(bufferDesc.usage, rhi::BufferUsageFlags::StorageBuffer));
+		SE_ASSERT(rhi::anySet(bufferDesc.usage, rhi::BufferUsageFlags::StorageBuffer));
 
 		rhi::UnorderedAccessDescriptorDescription desc;
 		desc.format = bufferDesc.format;
 
 		if (rhi::anySet(bufferDesc.usage, rhi::BufferUsageFlags::StructuredBuffer))
-		{
 			desc.type = rhi::UnorderedAccessDescriptorType::StructuredBuffer;
-		}
 		else if (rhi::anySet(bufferDesc.usage, rhi::BufferUsageFlags::FormattedBuffer))
-		{
 			desc.type = rhi::UnorderedAccessDescriptorType::FormattedBuffer;
-		}
 		else if (rhi::anySet(bufferDesc.usage, rhi::BufferUsageFlags::RawBuffer))
-		{
 			desc.type = rhi::UnorderedAccessDescriptorType::RawBuffer;
-		}
 
 		desc.buffer.offset = 0;
 		desc.buffer.size = bufferDesc.size;
@@ -175,13 +189,16 @@ namespace SE
 	{
 		if (!m_isImported)
 		{
-			m_pBuffer = m_Allocator.allocateBuffer(m_FirstPass, m_LastPass, m_LastState, m_Description, m_Name, m_InitialState);
+			m_pBuffer = m_Allocator.allocateBuffer(
+				m_FirstPass, m_LastPass, m_LastState, m_Description, m_Name, m_InitialState);
 		}
 	}
 
-	void RGBuffer::barrier(rhi::ICommandList* pCommandList, uint32_t subResource, rhi::ResourceAccessFlags acessBefore, rhi::ResourceAccessFlags acessAfter)
+	void RGBuffer::barrier(rhi::ICommandList* pCommandList, uint32_t subresource,
+		rhi::ResourceAccessFlags acess_before,
+		rhi::ResourceAccessFlags acess_after)
 	{
-		pCommandList->bufferBarrier(m_pBuffer, acessBefore, acessAfter);
+		pCommandList->bufferBarrier(m_pBuffer, acess_before, acess_after);
 	}
 
 	rhi::IResource* RGBuffer::getAliasedPrevResource(rhi::ResourceAccessFlags& lastUsedState)

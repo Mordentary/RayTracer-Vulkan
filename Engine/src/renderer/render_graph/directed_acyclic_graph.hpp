@@ -1,7 +1,9 @@
 #pragma once
-#include "vector"
-#include "string"
+
+#include <vector>
 #include <optional>
+#include <cstdint>
+#include <algorithm>
 
 namespace SE
 {
@@ -36,6 +38,7 @@ namespace SE
 		bool isTarget() const { return m_RefCount >= TARGET; }
 		bool isCulled() const { return m_RefCount == 0; }
 		uint32_t getRefCount() const { return isTarget() ? 1 : m_RefCount; }
+
 	private:
 		DAGNodeID m_NodeId;
 		uint32_t m_RefCount = 0;
@@ -57,6 +60,7 @@ namespace SE
 		bool isEdgeValid(const DAGEdge* edge) const;
 		void getIncomingEdges(const DAGNode* node, std::vector<DAGEdge*>& edges) const;
 		void getOutgoingEdges(const DAGNode* node, std::vector<DAGEdge*>& edges) const;
+
 	private:
 		std::vector<DAGNode*> m_Nodes;
 		std::vector<DAGEdge*> m_Edges;

@@ -499,7 +499,7 @@ namespace rhi::vulkan {
 		vkCmdSetScissor(m_CommandBuffer, 0, 1, &scissor);
 	}
 
-	void VulkanCommandList::setGraphicsPushConstants(uint32_t slot, const void* data, size_t dataSize)
+	void VulkanCommandList::setGraphicsConstants(uint32_t slot, const void* data, size_t dataSize)
 	{
 		if (slot == 0)
 		{
@@ -526,7 +526,7 @@ namespace rhi::vulkan {
 		m_GraphicsConstants.needsUpdate = true;
 	}
 
-	void VulkanCommandList::setComputePushConstants(uint32_t slot, const void* data, size_t dataSize)
+	void VulkanCommandList::setComputeConstants(uint32_t slot, const void* data, size_t dataSize)
 	{
 		if (slot == 0)
 		{

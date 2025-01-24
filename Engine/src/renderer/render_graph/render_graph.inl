@@ -1,76 +1,65 @@
 #pragma once
-#include "rhi/rhi.hpp"
-#include"directed_acyclic_graph.hpp"
+
 namespace SE
 {
-	class RenderGraphEdge : public DAGEdge
+	template<typename T>
+	void classFinalizer(void* p)
 	{
-	public:
-		RenderGraphEdge(DirectedAcyclicGraph& graph, DAGNode* from, DAGNode* to, rhi::ResourceAccessFlags usage, uint32_t subresource) :
-			DAGEdge(graph, from, to)
-		{
-			m_Usage = usage;
-			m_Subresource = subresource;
-		}
+		((T*)p)->~T();
+	}
 
-		rhi::ResourceAccessFlags getUsage() const { return m_Usage; }
-		uint32_t getSubresource() const { return m_Subresource; }
-
-	private:
-		rhi::ResourceAccessFlags m_Usage;
-		uint32_t m_Subresource;
-	};
-
-	class RenderGraphEdgeColorAttachment : public RenderGraphEdge
+	template<typename T, typename... ArgsT>
+	inline T* RenderGraph::allocate(ArgsT&&... arguments)
 	{
-	public:
-		RenderGraphEdgeColorAttachment(DirectedAcyclicGraph& graph, DAGNode* from, DAGNode* to, rhi::ResourceAccessFlags usage, uint32_t subresource,
-			uint32_t colorIndex, rhi::RenderPassLoadOp loadOp, const float* clearColor) :
-			RenderGraphEdge(graph, from, to, usage, subresource)
-		{
-			m_ColorIndex = colorIndex;
-			m_LoadOp = loadOp;
+		T* p = (T*)m_Allocator.allocate(sizeof(T));
+		new (p) T(std::forward<ArgsT>(arguments)...);
 
-			m_ClearColor[0] = clearColor[0];
-			m_ClearColor[1] = clearColor[1];
-			m_ClearColor[2] = clearColor[2];
-			m_ClearColor[3] = clearColor[3];
-		}
-		uint32_t getColorIndex() const { return m_ColorIndex; }
-		rhi::RenderPassLoadOp getLoadOp() const { return m_LoadOp; }
-		const float* getClearColor() const { return m_ClearColor; }
+		ObjFinalizer finalizer;
+		finalizer.obj = p;
+		finalizer.finalizer = &classFinalizer<T>;
+		m_ObjFinalizer.push_back(finalizer);
 
-	private:
-		uint32_t m_ColorIndex;
-		rhi::RenderPassLoadOp m_LoadOp;
-		float m_ClearColor[4] = {};
-	};
+		return p;
+	}
 
-	class RenderGraphEdgeDepthAttachment : public RenderGraphEdge
+	template<typename T, typename... ArgsT>
+	inline T* RenderGraph::allocatePOD(ArgsT&&... arguments)
 	{
-	public:
-		RenderGraphEdgeDepthAttachment(DirectedAcyclicGraph& graph, DAGNode* from, DAGNode* to, rhi::ResourceAccessFlags usage, uint32_t subresource,
-			rhi::RenderPassLoadOp depthLoadOP, rhi::RenderPassLoadOp stencilLoadOp, float clearDepth, uint32_t clearStencil) :
-			RenderGraphEdge(graph, from, to, usage, subresource)
-		{
-			m_DepthLoadOp = depthLoadOP;
-			m_StencilLoadOp = stencilLoadOp;
-			m_ClearDepth = clearDepth;
-			m_ClearStencil = clearStencil;
-			m_ReadOnly = rhi::anySet(usage, rhi::ResourceAccessFlags::DepthStencilRead) ? true : false;
-		}
+		T* p = (T*)m_Allocator.allocate(sizeof(T));
+		new (p) T(std::forward<ArgsT>(arguments)...);
+		return p;
+	}
 
-		rhi::RenderPassLoadOp getDepthLoadOp() const { return m_DepthLoadOp; };
-		rhi::RenderPassLoadOp getStencilLoadOp() const { return m_StencilLoadOp; };
-		float getClearDepth() const { return m_ClearDepth; }
-		uint32_t getClearStencil() const { return m_ClearStencil; };
-		bool isReadOnly() const { return m_ReadOnly; }
+	template<typename Resource>
+	inline RGHandle RenderGraph::create(const typename Resource::Desc& desc, const std::string& name)
+	{
+		auto resource = allocate<Resource>(m_ResourceAllocator, name, desc);
+		auto node = allocatePOD<RenderGraphResourceNode>(m_Graph, resource, 0);
 
-	private:
-		rhi::RenderPassLoadOp m_DepthLoadOp;
-		rhi::RenderPassLoadOp m_StencilLoadOp;
-		float m_ClearDepth;
-		uint32_t m_ClearStencil;
-		bool m_ReadOnly;
-	};
+		RGHandle handle;
+		handle.index = (uint16_t)m_Resources.size();
+		handle.node = (uint16_t)m_ResourceNodes.size();
+
+		m_Resources.push_back(resource);
+		m_ResourceNodes.push_back(node);
+
+		return handle;
+	}
+
+	template<typename Data, typename Setup, typename Exec>
+	inline RenderGraphPass<Data>& RenderGraph::addPass(
+		const std::string& name,
+		RenderPassType type,
+		const Setup& setup,
+		const Exec& execute)
+	{
+		auto pass = allocate<RenderGraphPass<Data>>(name, type, m_Graph, execute);
+
+		// Give pass a chance to specify input/outputs
+		RGBuilder builder(this, pass); // Only if you have an RGBuilder that takes these
+		setup(pass->getData(), builder);
+
+		m_Passes.push_back(pass);
+		return *pass;
+	}
 }

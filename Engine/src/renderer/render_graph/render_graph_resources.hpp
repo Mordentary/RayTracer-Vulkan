@@ -1,8 +1,12 @@
 #pragma once
-#include "directed_acyclic_graph.hpp"
+
+#include <string>
 #include "RHI/rhi.hpp"
+#include "directed_acyclic_graph.hpp"
+
 namespace SE
 {
+	// Forward declares to avoid needing the entire definitions here.
 	class RenderGraphEdge;
 	class RenderGraphPassBase;
 	class RenderGraphResourceAllocator;
@@ -10,13 +14,10 @@ namespace SE
 	class RenderGraphResource
 	{
 	public:
-		RenderGraphResource(const std::string& name)
-		{
-			m_Name = name;
-		}
+		RenderGraphResource(const std::string& name) { m_Name = name; }
 		virtual ~RenderGraphResource() {}
 
-		//virtual void resolve(RenderGraphEdge* edge, RenderGraphPassBase* pass);
+		virtual void resolve(RenderGraphEdge* edge, RenderGraphPassBase* pass);
 		virtual void realize() = 0;
 		virtual rhi::IResource* getResource() = 0;
 		virtual rhi::ResourceAccessFlags getInitialState() = 0;
@@ -37,7 +38,10 @@ namespace SE
 		bool isOverlapping() const { return !isImported() && !isOutput(); }
 
 		virtual rhi::IResource* getAliasedPrevResource(rhi::ResourceAccessFlags& lastUsedState) = 0;
-		virtual void barrier(rhi::ICommandList* pCommandList, uint32_t subresource, rhi::ResourceAccessFlags acess_before, rhi::ResourceAccessFlags accessAfter) = 0;
+		virtual void barrier(rhi::ICommandList* pCommandList,
+			uint32_t subresource,
+			rhi::ResourceAccessFlags acess_before,
+			rhi::ResourceAccessFlags access_after) = 0;
 
 	protected:
 		std::string m_Name;
@@ -46,44 +50,6 @@ namespace SE
 		rhi::ResourceAccessFlags m_LastState = rhi::ResourceAccessFlags::Discard;
 		bool m_isImported = false;
 		bool m_isOutput = false;
-	};
-
-	class RenderGraphResourceNode : public DAGNode
-	{
-	public:
-		RenderGraphResourceNode(DirectedAcyclicGraph& graph, RenderGraphResource* resource, uint32_t version) :
-			DAGNode(graph),
-			m_graph(graph)
-		{
-			m_pResource = resource;
-			m_version = version;
-		}
-
-		RenderGraphResource* getResource() const { return m_pResource; }
-		uint32_t getVersion() const { return m_version; }
-		DirectedAcyclicGraph& getDAG() const { return m_graph; }
-
-		//virtual std::string getGraphvizName() const override
-		//{
-		//	std::string s = m_pResource->getName();
-		//	s.append("\nversion:");
-		//	s.append(std::to_string(m_version));
-		//	if (m_version > 0)
-		//	{
-		//		std::vector<DAGEdge*> incoming_edges;
-		//		m_graph.getIncomingEdges(this, incoming_edges);
-		//		SE_ASSERT(incoming_edges.size() == 1);
-		//		uint32_t subresource = ((RenderGraphEdge*)incoming_edges[0])->getSubresource();
-		//		s.append("\nsubresource:");
-		//		s.append(std::to_string(subresource));
-		//	}
-		//	return s;
-		//}
-
-	private:
-		RenderGraphResource* m_pResource;
-		uint32_t m_version;
-		DirectedAcyclicGraph& m_graph;
 	};
 
 	class RGTexture : public RenderGraphResource
@@ -100,11 +66,12 @@ namespace SE
 		rhi::IDescriptor* getUAV();
 		rhi::IDescriptor* getUAV(uint32_t mip, uint32_t slice);
 
-		//virtual void resolve(RenderGraphEdge* edge, RenderGraphPassBase* pass) override;
 		virtual void realize() override;
 		virtual rhi::IResource* getResource() override { return m_pTexture; }
 		virtual rhi::ResourceAccessFlags getInitialState() override { return m_InitialState; }
-		virtual void barrier(rhi::ICommandList* pCommandList, uint32_t subresource, rhi::ResourceAccessFlags acess_before, rhi::ResourceAccessFlags acess_after) override;
+		virtual void barrier(rhi::ICommandList* pCommandList, uint32_t subresource,
+			rhi::ResourceAccessFlags acess_before,
+			rhi::ResourceAccessFlags acess_after) override;
 		virtual rhi::IResource* getAliasedPrevResource(rhi::ResourceAccessFlags& lastUsedState) override;
 
 	private:
@@ -127,11 +94,12 @@ namespace SE
 		rhi::IDescriptor* getSRV();
 		rhi::IDescriptor* getUAV();
 
-		//virtual void resolve(RenderGraphEdge* edge, RenderGraphPassBase* pass) override;
 		virtual void realize() override;
 		virtual rhi::IResource* getResource() override { return m_pBuffer; }
 		virtual rhi::ResourceAccessFlags getInitialState() override { return m_InitialState; }
-		virtual void barrier(rhi::ICommandList* pCommandList, uint32_t subresource, rhi::ResourceAccessFlags acess_before, rhi::ResourceAccessFlags acess_after) override;
+		virtual void barrier(rhi::ICommandList* pCommandList, uint32_t subresource,
+			rhi::ResourceAccessFlags acess_before,
+			rhi::ResourceAccessFlags acess_after) override;
 		virtual rhi::IResource* getAliasedPrevResource(rhi::ResourceAccessFlags& lastUsedState) override;
 
 	private:

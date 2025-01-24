@@ -12,6 +12,7 @@ namespace rhi::vulkan {
 
 	VulkanBuffer::~VulkanBuffer()
 	{
+		unmap();
 		((VulkanDevice*)m_Device)->enqueueDeletion(m_Buffer);
 		((VulkanDevice*)m_Device)->enqueueDeletion(m_Allocation);
 	}

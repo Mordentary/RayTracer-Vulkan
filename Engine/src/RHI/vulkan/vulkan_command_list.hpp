@@ -50,8 +50,8 @@ namespace rhi::vulkan
 		void setIndexBuffer(IBuffer* buffer, uint32_t offset, Format format) override;
 		void setViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height) override;
 		void setScissorRect(uint32_t x, uint32_t y, uint32_t width, uint32_t height) override;
-		void setGraphicsPushConstants(uint32_t slot, const void* data, size_t dataSize) override;
-		void setComputePushConstants(uint32_t slot, const void* data, size_t dataSize) override;
+		void setGraphicsConstants(uint32_t slot, const void* data, size_t dataSize) override;
+		void setComputeConstants(uint32_t slot, const void* data, size_t dataSize) override;
 
 		// Draw/dispatch commands
 		void draw(uint32_t vertexCount, uint32_t instanceCount = 1) override;

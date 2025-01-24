@@ -1,11 +1,10 @@
 #include "directed_acyclic_graph.hpp"
-#include <algorithm>
 
 namespace SE
 {
-	DAGEdge::DAGEdge(DirectedAcyclicGraph& graph, DAGNode* from, DAGNode* to) :
-		m_From(from->getId()),
-		m_To(to->getId())
+	DAGEdge::DAGEdge(DirectedAcyclicGraph& graph, DAGNode* from, DAGNode* to)
+		: m_From(from->getId())
+		, m_To(to->getId())
 	{
 		SE_ASSERT(graph.getNode(m_From) == from);
 		SE_ASSERT(graph.getNode(m_To) == to);
@@ -15,7 +14,6 @@ namespace SE
 	DAGNode::DAGNode(DirectedAcyclicGraph& graph)
 	{
 		m_NodeId = graph.generateNodeId();
-
 		graph.registerNode(this);
 	}
 
@@ -34,7 +32,6 @@ namespace SE
 	void DirectedAcyclicGraph::registerNode(DAGNode* node)
 	{
 		SE_ASSERT(node->getId() == m_Nodes.size());
-
 		m_Nodes.push_back(node);
 	}
 
@@ -69,7 +66,7 @@ namespace SE
 			}
 		}
 
-		// cull the entire chain of nodes if there are no nodes that contribute to a final image
+		// cull the entire chain
 		while (!stack.empty())
 		{
 			DAGNode* node = stack.back();
@@ -95,13 +92,13 @@ namespace SE
 
 	bool DirectedAcyclicGraph::isEdgeValid(const DAGEdge* edge) const
 	{
-		return !getNode(edge->m_From).value()->isCulled() && !getNode(edge->m_To).value()->isCulled();
+		return !getNode(edge->m_From).value()->isCulled() &&
+			!getNode(edge->m_To).value()->isCulled();
 	}
 
 	void DirectedAcyclicGraph::getIncomingEdges(const DAGNode* node, std::vector<DAGEdge*>& edges) const
 	{
 		edges.clear();
-
 		for (size_t i = 0; i < m_Edges.size(); i++)
 		{
 			auto& edge = m_Edges[i];
@@ -115,7 +112,6 @@ namespace SE
 	void DirectedAcyclicGraph::getOutgoingEdges(const DAGNode* node, std::vector<DAGEdge*>& edges) const
 	{
 		edges.clear();
-
 		for (size_t i = 0; i < m_Edges.size(); ++i)
 		{
 			auto& edge = m_Edges[i];

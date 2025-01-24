@@ -1,6 +1,6 @@
 #include "render_graph_resource_allocator.hpp"
-//#include "utils/math.h"
-//#include "utils/fmt.h"
+#include <fmt/format.h> // or any other string formatting method you use
+
 namespace SE
 {
 	RenderGraphResourceAllocator::RenderGraphResourceAllocator(rhi::IDevice* pDevice)
@@ -10,35 +10,32 @@ namespace SE
 
 	RenderGraphResourceAllocator::~RenderGraphResourceAllocator()
 	{
-		for (auto iter = m_AllocatedHeaps.begin(); iter != m_AllocatedHeaps.end(); ++iter)
+		for (auto& heap : m_AllocatedHeaps)
 		{
-			const Heap& heap = *iter;
-
 			for (size_t i = 0; i < heap.resources.size(); ++i)
 			{
 				deleteDescriptor(heap.resources[i].resource);
 				delete heap.resources[i].resource;
 			}
-
 			delete heap.heap;
 		}
-		for (auto iter = m_freeOverlappingTextures.begin(); iter != m_freeOverlappingTextures.end(); ++iter)
+
+		for (auto& tex : m_freeOverlappingTextures)
 		{
-			deleteDescriptor(iter->texture);
-			delete iter->texture;
+			deleteDescriptor(tex.texture);
+			delete tex.texture;
 		}
 	}
 
 	void RenderGraphResourceAllocator::reset()
 	{
-		for (auto iter = m_AllocatedHeaps.begin(); iter != m_AllocatedHeaps.end();)
+		// Free up resources whose usage is well behind the current frame
+		for (auto iter = m_AllocatedHeaps.begin(); iter != m_AllocatedHeaps.end(); )
 		{
-			Heap& heap = *iter;
-			checkHeapUsage(heap);
-
-			if (heap.resources.empty())
+			checkHeapUsage(*iter);
+			if (iter->resources.empty())
 			{
-				delete heap.heap;
+				delete iter->heap;
 				iter = m_AllocatedHeaps.erase(iter);
 			}
 			else
@@ -48,7 +45,6 @@ namespace SE
 		}
 
 		uint64_t current_frame = m_Device->getFrameID();
-
 		for (auto iter = m_freeOverlappingTextures.begin(); iter != m_freeOverlappingTextures.end(); )
 		{
 			if (current_frame - iter->lastUsedFrame > 30)
@@ -67,16 +63,12 @@ namespace SE
 	void RenderGraphResourceAllocator::checkHeapUsage(Heap& heap)
 	{
 		uint64_t current_frame = m_Device->getFrameID();
-
-		for (auto iter = heap.resources.begin(); iter != heap.resources.end();)
+		for (auto iter = heap.resources.begin(); iter != heap.resources.end(); )
 		{
-			const AliasedResource aliasedResource = *iter;
-
-			if (current_frame - aliasedResource.lastUsedFrame > 30)
+			if (current_frame - iter->lastUsedFrame > 30)
 			{
-				deleteDescriptor(aliasedResource.resource);
-
-				delete aliasedResource.resource;
+				deleteDescriptor(iter->resource);
+				delete iter->resource;
 				iter = heap.resources.erase(iter);
 			}
 			else
@@ -86,12 +78,17 @@ namespace SE
 		}
 	}
 
-	rhi::ITexture* RenderGraphResourceAllocator::allocateTexture(uint32_t firstPass, uint32_t lastPass, rhi::ResourceAccessFlags lastState,
-		const rhi::TextureDescription& desc, const std::string& name, rhi::ResourceAccessFlags& initial_state)
+	rhi::ITexture* RenderGraphResourceAllocator::allocateTexture(uint32_t firstPass,
+		uint32_t lastPass,
+		rhi::ResourceAccessFlags lastState,
+		const rhi::TextureDescription& desc,
+		const std::string& name,
+		rhi::ResourceAccessFlags& initial_state)
 	{
-		LifetimeRange lifetime = { firstPass, lastPass };
+		LifetimeRange lifetime{ firstPass, lastPass };
 		uint32_t texture_size = m_Device->getAllocationSize(desc);
 
+		// Try to find a heap that can hold it and doesn't overlap in pass usage
 		for (size_t i = 0; i < m_AllocatedHeaps.size(); ++i)
 		{
 			Heap& heap = m_AllocatedHeaps[i];
@@ -101,10 +98,13 @@ namespace SE
 				continue;
 			}
 
+			// Try reusing an existing texture if it has the same desc and is unused
 			for (size_t j = 0; j < heap.resources.size(); ++j)
 			{
 				AliasedResource& aliasedResource = heap.resources[j];
-				if (aliasedResource.resource->isTexture() && !aliasedResource.lifetime.isUsed() && ((rhi::ITexture*)aliasedResource.resource)->getDescription() == desc)
+				if (aliasedResource.resource->isTexture() &&
+					!aliasedResource.lifetime.isUsed() &&
+					((rhi::ITexture*)aliasedResource.resource)->getDescription() == desc)
 				{
 					aliasedResource.lifetime = lifetime;
 					initial_state = aliasedResource.lastUsedState;
@@ -113,6 +113,7 @@ namespace SE
 				}
 			}
 
+			// Otherwise create a new texture in this heap
 			rhi::TextureDescription newDesc = desc;
 			newDesc.heap = heap.heap;
 
@@ -139,15 +140,22 @@ namespace SE
 			return (rhi::ITexture*)aliasedTexture.resource;
 		}
 
+		// No existing heap can hold it; allocate a new heap
 		allocateHeap(texture_size);
 		return allocateTexture(firstPass, lastPass, lastState, desc, name, initial_state);
 	}
 
-	rhi::IBuffer* RenderGraphResourceAllocator::allocateBuffer(uint32_t firstPass, uint32_t lastPass, rhi::ResourceAccessFlags lastState, const rhi::BufferDescription& desc, const std::string& name, rhi::ResourceAccessFlags& initial_state)
+	rhi::IBuffer* RenderGraphResourceAllocator::allocateBuffer(uint32_t firstPass,
+		uint32_t lastPass,
+		rhi::ResourceAccessFlags lastState,
+		const rhi::BufferDescription& desc,
+		const std::string& name,
+		rhi::ResourceAccessFlags& initial_state)
 	{
-		LifetimeRange lifetime = { firstPass, lastPass };
+		LifetimeRange lifetime{ firstPass, lastPass };
 		uint32_t buffer_size = desc.size;
 
+		// Try to find a heap that can hold it and doesn't overlap in pass usage
 		for (size_t i = 0; i < m_AllocatedHeaps.size(); ++i)
 		{
 			Heap& heap = m_AllocatedHeaps[i];
@@ -157,10 +165,13 @@ namespace SE
 				continue;
 			}
 
+			// Try reusing an existing buffer if it has the same desc and is unused
 			for (size_t j = 0; j < heap.resources.size(); ++j)
 			{
 				AliasedResource& aliasedResource = heap.resources[j];
-				if (aliasedResource.resource->isBuffer() && !aliasedResource.lifetime.isUsed() && ((rhi::IBuffer*)aliasedResource.resource)->getDescription() == desc)
+				if (aliasedResource.resource->isBuffer() &&
+					!aliasedResource.lifetime.isUsed() &&
+					((rhi::IBuffer*)aliasedResource.resource)->getDescription() == desc)
 				{
 					aliasedResource.lifetime = lifetime;
 					initial_state = aliasedResource.lastUsedState;
@@ -169,6 +180,7 @@ namespace SE
 				}
 			}
 
+			// Otherwise create a new buffer in this heap
 			rhi::BufferDescription newDesc = desc;
 			newDesc.heap = heap.heap;
 
@@ -184,6 +196,7 @@ namespace SE
 			return (rhi::IBuffer*)aliasedBuffer.resource;
 		}
 
+		// No existing heap can hold it; allocate a new heap
 		allocateHeap(buffer_size);
 		return allocateBuffer(firstPass, lastPass, lastState, desc, name, initial_state);
 	}
@@ -191,9 +204,9 @@ namespace SE
 	void RenderGraphResourceAllocator::allocateHeap(uint32_t size)
 	{
 		rhi::HeapDescription heapDesc;
-		heapDesc.size = SE::alignToPowerOfTwo(size, 64u * 1024);
+		heapDesc.size = alignToPowerOfTwo(size, 64u * 1024);
 
-		std::string heapName = fmt::format("RG Heap {:.1f} MB", heapDesc.size / (1024.0f * 1024.0f)).c_str();
+		std::string heapName = fmt::format("RG Heap {:.1f} MB", heapDesc.size / (1024.0f * 1024.0f));
 
 		Heap heap;
 		heap.heap = m_Device->createHeap(heapDesc, heapName);
@@ -207,7 +220,6 @@ namespace SE
 			for (size_t i = 0; i < m_AllocatedHeaps.size(); ++i)
 			{
 				Heap& heap = m_AllocatedHeaps[i];
-
 				for (size_t j = 0; j < heap.resources.size(); ++j)
 				{
 					AliasedResource& aliasedResource = heap.resources[j];
@@ -219,17 +231,17 @@ namespace SE
 						{
 							aliasedResource.lastUsedState = state;
 						}
-
 						return;
 					}
 				}
 			}
-
-			SE_ASSERT(false);
+			SE_ASSERT(false && "Resource not found in any heap");
 		}
 	}
 
-	rhi::IResource* RenderGraphResourceAllocator::getAliasedPrevResource(rhi::IResource* resource, uint32_t firstPass, rhi::ResourceAccessFlags& lastUsedState)
+	rhi::IResource* RenderGraphResourceAllocator::getAliasedPrevResource(rhi::IResource* resource,
+		uint32_t firstPass,
+		rhi::ResourceAccessFlags& lastUsedState)
 	{
 		for (size_t i = 0; i < m_AllocatedHeaps.size(); ++i)
 		{
@@ -239,48 +251,47 @@ namespace SE
 				continue;
 			}
 
-			AliasedResource* aliased_resource = nullptr;
-			rhi::IResource* prev_resource = nullptr;
-			uint32_t prev_resource_lastpass = 0;
+			AliasedResource* bestPrev = nullptr;
+			rhi::IResource* prevResource = nullptr;
+			uint32_t prevLastPass = 0;
 
 			for (size_t j = 0; j < heap.resources.size(); ++j)
 			{
-				AliasedResource& aliasedResource = heap.resources[j];
-
-				if (aliasedResource.resource != resource &&
-					aliasedResource.lifetime.lastPass < firstPass &&
-					aliasedResource.lifetime.lastPass > prev_resource_lastpass)
+				AliasedResource& ar = heap.resources[j];
+				if (ar.resource != resource &&
+					ar.lifetime.lastPass < firstPass &&
+					ar.lifetime.lastPass > prevLastPass)
 				{
-					aliased_resource = &aliasedResource;
-					prev_resource = aliasedResource.resource;
-					lastUsedState = aliasedResource.lastUsedState;
-
-					prev_resource_lastpass = aliasedResource.lifetime.lastPass;
+					bestPrev = &ar;
+					prevResource = ar.resource;
+					lastUsedState = ar.lastUsedState;
+					prevLastPass = ar.lifetime.lastPass;
 				}
 			}
 
-			if (aliased_resource)
+			if (bestPrev)
 			{
-				aliased_resource->lastUsedState |= rhi::ResourceAccessFlags::Discard;
+				bestPrev->lastUsedState |= rhi::ResourceAccessFlags::Discard;
 			}
-
-			return prev_resource;
+			return prevResource;
 		}
 
-		SE_ASSERT(false);
+		SE_ASSERT(false && "Aliased resource not found in any heap");
 		return nullptr;
 	}
 
-	rhi::ITexture* RenderGraphResourceAllocator::allocateNonOverlappingTexture(const rhi::TextureDescription& desc, const std::string& name, rhi::ResourceAccessFlags& initial_state)
+	rhi::ITexture* RenderGraphResourceAllocator::allocateNonOverlappingTexture(const rhi::TextureDescription& desc,
+		const std::string& name,
+		rhi::ResourceAccessFlags& initial_state)
 	{
 		for (auto iter = m_freeOverlappingTextures.begin(); iter != m_freeOverlappingTextures.end(); ++iter)
 		{
-			rhi::ITexture* texture = iter->texture;
-			if (texture->getDescription() == desc)
+			if (iter->texture->getDescription() == desc)
 			{
 				initial_state = iter->lastUsedState;
+				rhi::ITexture* result = iter->texture;
 				m_freeOverlappingTextures.erase(iter);
-				return texture;
+				return result;
 			}
 		}
 		if (isDepthFormat(desc.format))
@@ -307,8 +318,11 @@ namespace SE
 		}
 	}
 
-	rhi::IDescriptor* RenderGraphResourceAllocator::getDescriptor(rhi::IResource* resource, const rhi::ShaderResourceViewDescriptorDescription& desc)
+	rhi::IDescriptor* RenderGraphResourceAllocator::getDescriptor(
+		rhi::IResource* resource,
+		const rhi::ShaderResourceViewDescriptorDescription& desc)
 	{
+		// Check cache
 		for (size_t i = 0; i < m_AllocatedSRVs.size(); ++i)
 		{
 			if (m_AllocatedSRVs[i].resource == resource &&
@@ -318,15 +332,17 @@ namespace SE
 			}
 		}
 
-		rhi::IDescriptor* srv = m_Device->createShaderResourceViewDescriptor(resource, desc, resource->getDebugName());
-
+		rhi::IDescriptor* srv =
+			m_Device->createShaderResourceViewDescriptor(resource, desc, resource->getDebugName());
 		m_AllocatedSRVs.push_back({ resource, srv, desc });
-
 		return srv;
 	}
 
-	rhi::IDescriptor* RenderGraphResourceAllocator::getDescriptor(rhi::IResource* resource, const rhi::UnorderedAccessDescriptorDescription& desc)
+	rhi::IDescriptor* RenderGraphResourceAllocator::getDescriptor(
+		rhi::IResource* resource,
+		const rhi::UnorderedAccessDescriptorDescription& desc)
 	{
+		// Check cache
 		for (size_t i = 0; i < m_AllocatedUAVs.size(); ++i)
 		{
 			if (m_AllocatedUAVs[i].resource == resource &&
@@ -336,10 +352,10 @@ namespace SE
 			}
 		}
 
-		rhi::IDescriptor* srv = m_Device->createUnorderedAccessDescriptor(resource, desc, resource->getDebugName());
-		m_AllocatedUAVs.push_back({ resource, srv, desc });
-
-		return srv;
+		rhi::IDescriptor* uav =
+			m_Device->createUnorderedAccessDescriptor(resource, desc, resource->getDebugName());
+		m_AllocatedUAVs.push_back({ resource, uav, desc });
+		return uav;
 	}
 
 	void RenderGraphResourceAllocator::deleteDescriptor(rhi::IResource* resource)

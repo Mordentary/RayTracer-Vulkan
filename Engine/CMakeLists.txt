@@ -8,7 +8,7 @@ list(REMOVE_ITEM ENGINE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/pch.cpp")
 target_sources(SingularityEngine
     PRIVATE ${ENGINE_SOURCES} ${INTERNAL_HEADERS}
     PUBLIC ${ENGINE_HEADERS}
- "src/renderer/render_graph/render_graph.cpp")
+)
 
 target_include_directories(SingularityEngine
     PUBLIC

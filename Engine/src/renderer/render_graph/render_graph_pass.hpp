@@ -1,8 +1,11 @@
 #pragma once
+
 #include "directed_acyclic_graph.hpp"
 #include "RHI/rhi.hpp"
 #include <functional>
 #include <vector>
+#include <string>
+#include <limits>
 
 namespace SE
 {
@@ -31,88 +34,89 @@ namespace SE
 
 	struct RenderGraphPassExecuteContext
 	{
-		Renderer* renderer;
-		rhi::ICommandList* graphicsCommandList;
-		rhi::ICommandList* computeCommandList;
-		rhi::IFence* computeQueueFence;
-		rhi::IFence* graphicsQueueFence;
+		Renderer* renderer = nullptr;
+		rhi::ICommandList* graphicsCommandList = nullptr;
+		rhi::ICommandList* computeCommandList = nullptr;
+		rhi::IFence* computeQueueFence = nullptr;
+		rhi::IFence* graphicsQueueFence = nullptr;
 
-		uint64_t initialComputeFenceValue;
-		uint64_t lastSignaledComputeValue;
+		uint64_t initialComputeFenceValue = 0;
+		uint64_t lastSignaledComputeValue = 0;
 
-		uint64_t initialGraphicsFenceValue;
-		uint64_t lastSignaledGraphicsValue;
+		uint64_t initialGraphicsFenceValue = 0;
+		uint64_t lastSignaledGraphicsValue = 0;
 	};
 
 	class RenderGraphPassBase : public DAGNode
 	{
 	public:
 		RenderGraphPassBase(const std::string& name, RenderPassType type, DirectedAcyclicGraph& graph);
-		~RenderGraphPassBase() = default;
+		virtual ~RenderGraphPassBase() = default;
 
 		void resolveBarriers(const DirectedAcyclicGraph& graph);
 		void resolveAsyncCompute(const DirectedAcyclicGraph& graph, RenderGraphAsyncResolveContext& context);
 		void execute(const RenderGraph& graph, RenderGraphPassExecuteContext& context);
 
-		//virtual std::string getGraphvizName() const override { return m_name.c_str(); }
-		//virtual const char* getGraphvizColor() const override { return !IsCulled() ? "darkgoldenrod1" : "darkgoldenrod4"; }
-
 		RenderPassType getType() const { return m_Type; }
 		DAGNodeID getWaitGraphicsPassID() const { return m_WaitGraphicsPass; }
 		DAGNodeID getSignalGraphicsPassID() const { return m_SignalGraphicsPass; }
 
-	private:
-		void begin(const RenderGraph& graph, rhi::ICommandList* pCommandList);
-		void end(rhi::ICommandList* pCommandList);
-
-		bool hasGfxRenderPass() const;
-
+	protected:
 		virtual void executeImpl(rhi::ICommandList* pCommandList) = 0;
 
-	protected:
 		std::string m_Name;
 		RenderPassType m_Type;
 
 		struct ResourceBarrier
 		{
-			RenderGraphResource* resource;
-			uint32_t subResource;
-			rhi::ResourceAccessFlags oldState;
-			rhi::ResourceAccessFlags newState;
+			RenderGraphResource* resource = nullptr;
+			uint32_t subResource = 0;
+			rhi::ResourceAccessFlags oldState = rhi::ResourceAccessFlags::Discard;
+			rhi::ResourceAccessFlags newState = rhi::ResourceAccessFlags::Discard;
 		};
 		std::vector<ResourceBarrier> m_ResourceBarriers;
 
 		struct AliasDiscardBarrier
 		{
-			rhi::IResource* resource;
-			rhi::ResourceAccessFlags acessBefore;
-			rhi::ResourceAccessFlags acessAfter;
+			rhi::IResource* resource = nullptr;
+			rhi::ResourceAccessFlags acessBefore = rhi::ResourceAccessFlags::Discard;
+			rhi::ResourceAccessFlags acessAfter = rhi::ResourceAccessFlags::Discard;
 		};
 		std::vector<AliasDiscardBarrier> m_DiscardBarriers;
 
 		RenderGraphEdgeColorAttachment* m_pColorRT[8] = {};
 		RenderGraphEdgeDepthAttachment* m_pDepthRT = nullptr;
 
-		//only for async-compute pass
+		// Only for async-compute pass:
 		DAGNodeID m_WaitGraphicsPass = UINT32_MAX;
 		DAGNodeID m_SignalGraphicsPass = UINT32_MAX;
 
-		uint64_t m_SignalValue = -1;
-		uint64_t m_WaitValue = -1;
+		// Fence values if needed
+		uint64_t m_SignalValue = uint64_t(-1);
+		uint64_t m_WaitValue = uint64_t(-1);
+
+	private:
+		void begin(const RenderGraph& graph, rhi::ICommandList* pCommandList);
+		void end(rhi::ICommandList* pCommandList);
+		bool hasGfxRenderPass() const;
 	};
 
 	template<class T>
 	class RenderGraphPass : public RenderGraphPassBase
 	{
 	public:
-		RenderGraphPass(const std::string& name, RenderPassType type, DirectedAcyclicGraph& graph, const std::function<void(const T&, rhi::ICommandList*)>& execute) :
-			RenderGraphPassBase(name, type, graph)
+		RenderGraphPass(
+			const std::string& name,
+			RenderPassType type,
+			DirectedAcyclicGraph& graph,
+			const std::function<void(const T&, rhi::ICommandList*)>& execute)
+			: RenderGraphPassBase(name, type, graph)
+			, m_Execute(execute)
 		{
-			m_Execute = execute;
 		}
 
 		T& getData() { return m_Parameters; }
-		T const* operator->() { return &getData(); }
+		const T* operator->() { return &m_Parameters; }
 
 	private:
 		void executeImpl(rhi::ICommandList* pCommandList) override
@@ -120,7 +124,6 @@ namespace SE
 			m_Execute(m_Parameters, pCommandList);
 		}
 
-	protected:
 		T m_Parameters;
 		std::function<void(const T&, rhi::ICommandList*)> m_Execute;
 	};
