@@ -1,9 +1,12 @@
 #pragma once
-#include"../RHI/types.hpp"
-#include "../RHI/rhi.hpp"
 #include "engine_core.h"
-#include<array>
+#include "../RHI/rhi.hpp"
 #include "staging_buffer_allocator.hpp"
+#include "render_graph\render_graph.hpp"
+
+#include"glm\glm.hpp"
+
+#include <array>
 
 namespace SE
 {
@@ -16,11 +19,13 @@ namespace SE
 		void createDevice(rhi::RenderBackend backend, void* window_handle, uint32_t window_width, uint32_t window_height);
 		void createRenderTarget(uint32_t renderWidth, uint32_t renderHeight);
 
+		void buildRenderGraph(RGHandle& outColor, RGHandle& outDepth);
+		void setupGlobalConstants(rhi::ICommandList* pCommandList);
 		void renderFrame();
 		rhi::IDevice* getDevice() const { return m_Device.get(); }
 		uint64_t getFrameID() { return m_Device->getFrameID(); };
 		rhi::ISwapchain* getSwapchain() const { return m_Swapchain.get(); }
-		rhi::ITexture* getRenderTarget() const { return m_RenderTargetColor.get(); }
+		rhi::ITexture* getRenderTarget() const { return m_RTColor.get(); }
 		void uploadTexture(rhi::ITexture* texture, const void* data);
 		void uploadBuffer(rhi::IBuffer* buffer, uint32_t offset, const void* data, uint32_t data_size);
 	private:
@@ -28,9 +33,13 @@ namespace SE
 		Scoped<rhi::ISwapchain> m_Swapchain = nullptr;
 		glm::vec2 m_WindowSize{};
 		glm::vec2 m_RenderTargetSize{};
-		Scoped<rhi::ITexture> m_RenderTargetColor{};
-		Scoped<rhi::ITexture> m_RenderTargetDepth{};
+		Scoped<rhi::ITexture> m_RTColor{};
+		Scoped<rhi::ITexture> m_RTDepth{};
+		RGHandle m_OutputColorHandle;
+		RGHandle m_OutputDepthHandle;
+
 		Scoped<rhi::IPipelineState> m_DefaultPipeline;
+		Scoped<RenderGraph> m_RenderGraph;
 
 		Scoped<rhi::IShader> m_TestShaderVS;
 		Scoped<rhi::IShader> m_TestShaderPS;

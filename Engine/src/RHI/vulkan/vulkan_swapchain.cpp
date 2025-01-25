@@ -44,7 +44,7 @@ namespace rhi::vulkan {
 			.set_desired_format({ toVkFormat(m_Description.format), VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 			.set_desired_present_mode(m_EnableVsync ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
 			.set_desired_extent(m_Description.width, m_Description.height)
-			.add_image_usage_flags(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
+			.add_image_usage_flags(VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 			.set_old_swapchain(oldSwapchain)
 			.build();
 

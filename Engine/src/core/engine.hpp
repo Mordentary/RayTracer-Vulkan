@@ -40,7 +40,6 @@ namespace SE
 		void handleEvent(const SDL_Event& event);
 	private:
 		Scoped<Renderer> m_Renderer;
-
 		Scoped<Editor> m_Editor;
 		Scoped<Window> m_Window;
 		bool m_StopRendering = false;
