@@ -70,7 +70,7 @@ namespace rhi::vulkan {
 		m_SwapchainImages.resize(size);
 		for (size_t i = 0; i < size; ++i) {
 			std::string name = fmt::format("{} texture {}", m_DebugName, i);
-			SE::Scoped<VulkanTexture> image = SE::CreateScoped<VulkanTexture>((VulkanDevice*)m_Device, textureDesc, name);
+			SE::Scoped<VulkanTexture> image = SE::createScoped<VulkanTexture>((VulkanDevice*)m_Device, textureDesc, name);
 			if (!image->create(images[i]))
 				return false;
 			m_SwapchainImages[i] = std::move(image);

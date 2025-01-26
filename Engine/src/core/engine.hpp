@@ -26,6 +26,8 @@ namespace SE
 		SINGULARITY_API void run();
 		SINGULARITY_API void shutdown();
 
+		const std::string& getAssetPath() const { return m_AssetPath; }
+		const std::string& getShaderPath() const { return m_ShaderPath; }
 		Window& getWindow() const { return *m_Window; }
 		Editor& getEditor() const { return *m_Editor; }
 		Renderer& getRenderer() const { return *m_Renderer; }

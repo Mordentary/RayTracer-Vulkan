@@ -9,21 +9,24 @@ namespace SE
 	void Engine::create(uint32_t widthWin, uint32_t heightWin)
 	{
 		rpmalloc_initialize();
-		m_Window = CreateScoped<Window>("Singularity Engine", widthWin, heightWin);
+		m_Window = createScoped<Window>("Singularity Engine", widthWin, heightWin);
 		m_Window->setEventCallback([this](const SDL_Event& event) {
 			handleEvent(event);
 			});
 
-		m_Renderer = CreateScoped<Renderer>();
+		m_AssetPath = "assets/";
+		m_ShaderPath = "shaders/";
+		m_Renderer = createScoped<Renderer>();
 		m_Renderer->createDevice(rhi::RenderBackend::Vulkan, m_Window->getNativeWindow(), widthWin, heightWin);
 
 		//World
-		m_Editor = CreateScoped<Editor>(this);
+		m_Editor = createScoped<Editor>(this);
 		m_Editor->create();
 		const Editor::ViewportState* state = m_Editor->getViewportState();
-		m_Renderer->createRenderTarget(state->renderTargetSize.x, state->renderTargetSize.y);
 
-		//m_Camera = CreateShared<Camera>(m_Editor->getViewportState(), window);
+		//todo: enable viewport and render into it
+		m_Renderer->createRenderTarget(m_Window->getHeight(), m_Window->getHeight());
+
 		Timer::getInstance().reset();
 	}
 

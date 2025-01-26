@@ -10,6 +10,8 @@ namespace SE
 	Renderer::Renderer()
 	{
 		Engine::getInstance().getWindow().WindowResizeSignal.connect(&Renderer::onWindowResize, this);
+		m_ShaderCompiler = createScoped<ShaderCompiler>(this);
+		m_ShaderCache = createScoped<ShaderCache>(this);
 	}
 	Renderer::~Renderer()
 	{
@@ -52,52 +54,23 @@ namespace SE
 		swapchainDesc.vsync = true;
 
 		m_Swapchain.reset(m_Device->createSwapchain(swapchainDesc, "MainSwapchain"));
-		m_RenderGraph = CreateScoped<RenderGraph>(this);
+		m_RenderGraph = createScoped<RenderGraph>(this);
 
 		initFrameResources();
 
-		m_Compiler = new ShaderCompiler(this);
+		m_TestShaderVS = m_ShaderCache->getShader("defaultShader.hlsl", "VSMain", ShaderType::Vertex, {});
+		m_TestShaderPS = m_ShaderCache->getShader("defaultShader.hlsl", "PSMain", ShaderType::Pixel, {});
 
-		std::vector<uint8_t> vsBinary;
-		bool vsSuccess = m_Compiler->compile(
-			"shaders/defaultShader.hlsl",       // Path to HLSL file
-			"VSMain",            // Entry point for Vertex Shader
-			rhi::ShaderType::Vertex,
-			{},                   // Defines
-			vsBinary              // Output binary
-		);
-
-		if (!vsSuccess) {
-			// Handle compilation failure for Vertex Shader
-		}
-
-		std::vector<uint8_t> psBinary;
-		bool psSuccess = m_Compiler->compile(
-			"shaders/defaultShader.hlsl",       // Path to HLSL file
-			"PSMain",            // Entry point for Vertex Shader
-			rhi::ShaderType::Pixel,
-			{},                   // Defines
-			psBinary              // Output binary
-		);
-
-		if (!psSuccess) {
-			// Handle compilation failure for Pixel Shader
-		}
-
-		ShaderDescription shaderDesc{};
-		shaderDesc.type = ShaderType::Vertex;
-		shaderDesc.file = "defaultShader.hlsl";
-		shaderDesc.entryPoint = "VSMain";
-		m_TestShaderVS = Scoped<IShader>(m_Device->createShader(shaderDesc, vsBinary, "TestShaderVS"));
-		shaderDesc.type = ShaderType::Pixel;
-		shaderDesc.entryPoint = "PSMain";
-		m_TestShaderPS = Scoped<IShader>(m_Device->createShader(shaderDesc, psBinary, "TestShaderPS"));
+		DepthStencil depthInfo;
+		depthInfo.depthTest = true;
+		depthInfo.depthFunction = CompareFunction::GreaterEqual;
 
 		GraphicsPipelineDescription pipeDesc{};
-		pipeDesc.vertexShader = m_TestShaderVS.get();
-		pipeDesc.pixelShader = m_TestShaderPS.get();
+		pipeDesc.vertexShader = m_TestShaderVS;
+		pipeDesc.pixelShader = m_TestShaderPS;
 		pipeDesc.renderTargetFormat[0] = Format::R8G8B8A8_UNORM;
-		pipeDesc.depthStencilFormat = Format::D24_UNORM_S8_UINT;
+		pipeDesc.depthStencilFormat = Format::D32_SFLOAT;
+		pipeDesc.depthStencil = depthInfo;
 		m_DefaultPipeline = Scoped<rhi::IPipelineState>(m_Device->createGraphicsPipelineState(pipeDesc, "TestGraphicsPipeline"));
 
 		std::vector<Vertex> cubeVertices = {
@@ -191,36 +164,26 @@ namespace SE
 		vertexBufferDescriptorDesc.buffer.offset = 0;
 		vertexBufferDescriptorDesc.type = ShaderResourceViewDescriptorType::RawBuffer;
 		m_VertexBufferDescriptor = m_Device->createShaderResourceViewDescriptor(m_VertexBuffer.get(), vertexBufferDescriptorDesc, "VertexBufferDescriptor");
-
-		//BufferDescription constantBufferWithIndicesDesc;
-		//constantBufferWithIndicesDesc.memoryType = MemoryType::GpuOnly;
-		//constantBufferWithIndicesDesc.size = sizeof(SceneConstant);
-		//constantBufferWithIndicesDesc.usage = BufferUsageFlags::UniformBuffer;
-		//constantBufferWithIndicesDesc.stride = sizeof(SceneConstant);
-		//Buffer* constantBuffer = m_Device->allocate(constantBufferWithIndicesDesc, "ConstantBufferWithIndices");
-
-		//ConstantBufferDescriptorDescription constantBufferDescriptor;
-		//constantBufferDescriptor.size = sizeof(SceneConstant);
-		//constantBufferDescriptor.offset = 0;
-		//Descriptor* sceneConstantBufferDescriptor = m_Device->createConstantBufferDescriptor(constantBuffer, constantBufferDescriptor, "ConstantBufferWithIndicesDescriptor");
 	}
 
 	void Renderer::createRenderTarget(uint32_t renderWidth, uint32_t renderHeight)
 	{
-		Engine::getInstance().getEditor().ViewportResizeSignal.connect(&Renderer::onViewportResize, this);
+		//Engine::getInstance().getEditor().ViewportResizeSignal.connect(&Renderer::onViewportResize, this);
 		m_RenderTargetSize.x = renderWidth;
 		m_RenderTargetSize.y = renderHeight;
-		//rhi::TextureDescription textAttachDesc{};
-		//textAttachDesc.usage = TextureUsageFlags::RenderTarget;
+		rhi::TextureDescription textAttachDesc{};
+		textAttachDesc.usage = TextureUsageFlags::RenderTarget;
+		textAttachDesc.format = Format::R8G8B8A8_UNORM;
 
-		//textAttachDesc.format = Format::R16G16B16A16_UNORM;
-		//textAttachDesc.width = renderWidth;
-		//textAttachDesc.height = renderHeight;
-		//textAttachDesc.depth = 1;
-		//m_RTColor.reset(m_Device->createTexture(textAttachDesc, "MainRenderTarget:Color"));
-		//textAttachDesc.usage = TextureUsageFlags::DepthStencil;
-		//textAttachDesc.format = Format::D24_UNORM_S8_UINT;
-		//m_RTDepth.reset(m_Device->createTexture(textAttachDesc, "MainRenderTarget:Depth"));
+		//todo: remove hardcode
+		textAttachDesc.width = m_WindowSize.x;
+		textAttachDesc.height = m_WindowSize.y;
+		textAttachDesc.depth = 1;
+
+		m_OutputTextureColor.reset(m_Device->createTexture(textAttachDesc, "MainRenderTarget:Color"));
+		textAttachDesc.usage = TextureUsageFlags::DepthStencil;
+		textAttachDesc.format = Format::D32_SFLOAT;
+		m_OutputTextureDepth.reset(m_Device->createTexture(textAttachDesc, "MainRenderTarget:Depth"));
 	}
 	void Renderer::renderFrame()
 	{
@@ -255,10 +218,10 @@ namespace SE
 		waitForPreviousFrame();
 		m_WindowSize = glm::vec2(width, height);
 		m_Swapchain->resize(width, height);
+		createRenderTarget(width, height);
 	}
 	void SE::Renderer::onViewportResize(uint32_t width, uint32_t height)
 	{
-		//createRenderTarget(width, height);
 	}
 
 	void Renderer::waitForPreviousFrame()
@@ -272,24 +235,18 @@ namespace SE
 	void Renderer::copyToBackBuffer(rhi::ICommandList* commandList)
 	{
 		m_Swapchain->acquireNextImage();
-		//commandList->textureBarrier(m_RenderTargetColor.get(), ResourceAccessFlags::Discard, ResourceAccessFlags::RenderTarget);
 
-		RGTexture* outputImage = m_RenderGraph->getTexture(m_OutputColorHandle);
+		RGTexture* colorImage = m_RenderGraph->getTexture(m_OutputColorHandle);
 		ITexture* presentImage = m_Swapchain->getCurrentSwapchainImage();
 
 		commandList->textureBarrier(presentImage, ResourceAccessFlags::Present, ResourceAccessFlags::TransferDst);
-		commandList->copyTexture(presentImage, 0, 0, outputImage->getTexture(), 0, 0);
+		commandList->copyTexture(presentImage, 0, 0, colorImage->getTexture(), 0, 0);
 		commandList->textureBarrier(presentImage, ResourceAccessFlags::TransferDst, ResourceAccessFlags::RenderTarget);
-
+		//for the next frame
+		commandList->textureBarrier(colorImage->getTexture(), ResourceAccessFlags::TransferSrc, ResourceAccessFlags::RenderTarget);
 		rhi::RenderPassDescription renderPass;
 		renderPass.color[0].texture = presentImage;
-		//renderPass.color[0].loadOp = RenderPassLoadOp::Clear;
-		//renderPass.depth.texture = m_RenderTargetDepth.get();
-		//renderPass.depth.loadOp = RenderPassLoadOp::DontCare;
-		//renderPass.depth.stencilLoadOp = RenderPassLoadOp::DontCare;
-		//renderPass.depth.storeOp = RenderPassStoreOp::DontCare;
-		//renderPass.depth.stencilStoreOp = RenderPassStoreOp::DontCare;
-		//renderPass.depth.readOnly = false;
+		renderPass.color[0].loadOp = RenderPassLoadOp::Load;
 
 		commandList->beginRenderPass(renderPass);
 		Engine::getInstance().getEditor().render(commandList);
@@ -305,7 +262,7 @@ namespace SE
 			frame.commandList.reset(m_Device->createCommandList(rhi::CommandType::Graphics, "MainCommands"));
 			frame.computeCommandList.reset(m_Device->createCommandList(rhi::CommandType::Compute, "ComputeCommands"));
 			frame.uploadCommandList.reset(m_Device->createCommandList(rhi::CommandType::Copy, "UploadCommands"));
-			frame.stagingBufferAllocator = CreateScoped<StagingBufferAllocator>(this);
+			frame.stagingBufferAllocator = createScoped<StagingBufferAllocator>(this);
 		}
 		m_FrameFence.reset(m_Device->createFence("FrameFence"));
 		m_UploadFence.reset(m_Device->createFence("UploadFence"));
@@ -406,21 +363,17 @@ namespace SE
 		struct ForwardPassData
 		{
 			RGHandle outSceneColorRT;
-			//RGHandle outSceneDepthRT;
+			RGHandle outSceneDepthRT;
 		};
+
+		m_OutputColorHandle = m_RenderGraph->import(m_OutputTextureColor.get(), rhi::ResourceAccessFlags::RenderTarget);
+		m_OutputDepthHandle = m_RenderGraph->import(m_OutputTextureDepth.get(), rhi::ResourceAccessFlags::MaskDepthStencilAccess);
 
 		auto forward_pass = m_RenderGraph->addPass<ForwardPassData>("Forward Pass", RenderPassType::Graphics,
 			[&](ForwardPassData& data, RGBuilder& builder)
 			{
-				RGTexture::Desc outputTexture;
-				outputTexture.usage = TextureUsageFlags::RenderTarget;
-				outputTexture.format = Format::R8G8B8A8_UNORM;
-				outputTexture.width = m_WindowSize.x;
-				outputTexture.height = m_WindowSize.y;
-				outputTexture.depth = 1;
-				RGHandle outputHandle = builder.create<RGTexture>(outputTexture, "OutputTexture");
-				data.outSceneColorRT = builder.writeColor(0, outputHandle, 0, rhi::RenderPassLoadOp::Load);
-				//data.outSceneDepthRT = builder.writeDepth(depth, 0, rhi::RenderPassLoadOp::Load);
+				data.outSceneColorRT = builder.writeColor(0, m_OutputColorHandle, 0, rhi::RenderPassLoadOp::Clear);
+				data.outSceneDepthRT = builder.writeDepth(m_OutputDepthHandle, 0, rhi::RenderPassLoadOp::Clear);
 			},
 			[&](const ForwardPassData& data, ICommandList* pCommandList)
 			{
@@ -429,8 +382,10 @@ namespace SE
 			});
 
 		color = forward_pass->outSceneColorRT;
+		depth = forward_pass->outSceneDepthRT;
 
 		m_RenderGraph->present(color, ResourceAccessFlags::TransferSrc);
+		m_RenderGraph->present(depth, ResourceAccessFlags::MaskDepthStencilAccess);
 
 		m_RenderGraph->compile();
 	}

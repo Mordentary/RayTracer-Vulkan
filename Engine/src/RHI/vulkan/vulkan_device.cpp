@@ -221,13 +221,13 @@ namespace rhi::vulkan {
 		allocatorInfo.pVulkanFunctions = &vmaVulkanFuncs;
 		vmaCreateAllocator(&allocatorInfo, &m_Allocator);
 
-		m_DeletionQueue = SE::CreateScoped<VulkanDeletionQueue>(this);
+		m_DeletionQueue = SE::createScoped<VulkanDeletionQueue>(this);
 
 		for (size_t i = 0; i < SE::SE_MAX_FRAMES_IN_FLIGHT; ++i)
 		{
 			m_TransitionCopyCommandList[i] = SE::Scoped<ICommandList>(createCommandList(CommandType::Copy, "Transition CommandList[Transfer]"));
 			m_TransitionGraphicsCommandList[i] = SE::Scoped<ICommandList>(createCommandList(CommandType::Graphics, "Transition CommandList[Graphics]"));
-			m_ConstantBufferAllocators[i] = SE::CreateScoped<VulkanConstantBufferAllocator>(this, 8 * 1024 * 1024);
+			m_ConstantBufferAllocators[i] = SE::createScoped<VulkanConstantBufferAllocator>(this, 8 * 1024 * 1024);
 		}
 
 		VkPhysicalDeviceProperties2 properties = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2 };
@@ -243,8 +243,8 @@ namespace rhi::vulkan {
 		resourceDescriptorSize = std::max(resourceDescriptorSize, m_DescriptorBufferProperties.accelerationStructureDescriptorSize);
 
 		size_t samplerDescriptorSize = m_DescriptorBufferProperties.samplerDescriptorSize;
-		m_ResourceDescriptorAllocator = SE::CreateScoped<VulkanDescriptorAllocator>(this, (uint32_t)resourceDescriptorSize, SE_MAX_RESOURCE_DESCRIPTOR_COUNT, VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT);
-		m_SamplerDescriptorAllocator = SE::CreateScoped<VulkanDescriptorAllocator>(this, (uint32_t)samplerDescriptorSize, SE_MAX_SAMPLER_DESCRIPTOR_COUNT, VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT);
+		m_ResourceDescriptorAllocator = SE::createScoped<VulkanDescriptorAllocator>(this, (uint32_t)resourceDescriptorSize, SE_MAX_RESOURCE_DESCRIPTOR_COUNT, VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT);
+		m_SamplerDescriptorAllocator = SE::createScoped<VulkanDescriptorAllocator>(this, (uint32_t)samplerDescriptorSize, SE_MAX_SAMPLER_DESCRIPTOR_COUNT, VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT);
 
 		return true;
 	}
@@ -543,7 +543,7 @@ namespace rhi::vulkan {
 		return texture;
 	}
 
-	IShader* VulkanDevice::createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name)
+	IShader* VulkanDevice::createShader(const ShaderDescription& desc, std::span<std::byte> data, const std::string& name)
 	{
 		VulkanShader* shader = new VulkanShader(this, desc, name);
 		if (!shader->create(data))

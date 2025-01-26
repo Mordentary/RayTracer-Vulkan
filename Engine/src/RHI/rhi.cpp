@@ -13,7 +13,7 @@ namespace rhi
 		case RenderBackend::D3D12:
 			return nullptr; // Currently not implemented
 		case RenderBackend::Vulkan:
-			return SE::CreateScoped<vulkan::VulkanDevice>(desc);
+			return SE::createScoped<vulkan::VulkanDevice>(desc);
 		default:
 			return nullptr; // Unsupported backend
 		}

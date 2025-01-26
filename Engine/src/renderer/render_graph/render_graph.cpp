@@ -134,7 +134,7 @@ namespace SE
 		m_OutputResources.clear();
 	}
 
-	void RenderGraph::present(const RGHandle& handle, rhi::ResourceAccessFlags filnal_state)
+	void RenderGraph::present(const RGHandle& handle, rhi::ResourceAccessFlags finalState)
 	{
 		SE_ASSERT(handle.IsValid());
 
@@ -146,7 +146,7 @@ namespace SE
 
 		PresentTarget target;
 		target.resource = resource;
-		target.state = filnal_state;
+		target.state = finalState;
 		m_OutputResources.push_back(target);
 	}
 

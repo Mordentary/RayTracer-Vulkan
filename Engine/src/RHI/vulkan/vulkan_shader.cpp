@@ -15,7 +15,7 @@ namespace rhi::vulkan
 		((VulkanDevice*)m_Device)->enqueueDeletion(m_Shader);
 	}
 
-	bool VulkanShader::create(std::span<uint8_t> data)
+	bool VulkanShader::create(std::span<std::byte> data)
 	{
 		((VulkanDevice*)m_Device)->enqueueDeletion(m_Shader);
 
@@ -29,7 +29,7 @@ namespace rhi::vulkan
 
 		setDebugName(device, VK_OBJECT_TYPE_SHADER_MODULE, m_Shader, m_DebugName.c_str());
 
-		//m_Hash = XXH3_64bits(data.data(), data.size());
+		m_Hash = XXH3_64bits(data.data(), data.size());
 
 		return true;
 	}

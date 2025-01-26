@@ -46,7 +46,7 @@ namespace rhi::vulkan
 		virtual IFence* createFence(const std::string& name) override;
 		virtual IBuffer* createBuffer(const BufferDescription& desc, const std::string& name) override;
 		virtual ITexture* createTexture(const TextureDescription& desc, const std::string& name) override;
-		virtual IShader* createShader(const ShaderDescription& desc, std::span<uint8_t> data, const std::string& name) override;
+		virtual IShader* createShader(const ShaderDescription& desc, std::span<std::byte> data, const std::string& name) override;
 		virtual IPipelineState* createGraphicsPipelineState(const GraphicsPipelineDescription& desc, const std::string& name) override;
 		virtual IPipelineState* createComputePipelineState(const ComputePipelineDescription& desc, const std::string& name) override;
 		virtual IDescriptor* createShaderResourceViewDescriptor(IResource* resource, const ShaderResourceViewDescriptorDescription& desc, const std::string& name) override;

@@ -9,7 +9,7 @@ namespace SE {
 	template <typename T>
 	using Shared = std::shared_ptr<T>;
 	template<typename T, typename ... Args>
-	constexpr Shared<T> CreateShared(Args&& ... args)
+	constexpr Shared<T> createShared(Args&& ... args)
 	{
 		return std::make_shared<T>(std::forward<Args>(args)...);
 	}
@@ -17,7 +17,7 @@ namespace SE {
 	template <typename T, typename Deleter = std::default_delete<T>>
 	using Scoped = std::unique_ptr<T, Deleter>;
 	template<typename T, typename ... Args>
-	constexpr Scoped<T> CreateScoped(Args&& ... args)
+	constexpr Scoped<T> createScoped(Args&& ... args)
 	{
 		return std::make_unique<T>(std::forward<Args>(args)...);
 	}

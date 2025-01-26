@@ -12,7 +12,7 @@ namespace rhi
 	public:
 		const ShaderDescription& getDescription() const { return m_Description; }
 		uint64_t getHash() const { return m_Hash; }
-		virtual bool create(std::span<uint8_t> data) = 0;
+		virtual bool create(std::span<std::byte> data) = 0;
 
 	protected:
 		ShaderDescription m_Description = {};

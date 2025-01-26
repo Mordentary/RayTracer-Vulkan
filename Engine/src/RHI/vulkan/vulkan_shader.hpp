@@ -12,7 +12,7 @@ namespace rhi::vulkan
 		~VulkanShader();
 
 		virtual void* getHandle() const override { return m_Shader; };
-		virtual bool create(std::span<uint8_t> data) override;
+		virtual bool create(std::span<std::byte> data) override;
 
 	private:
 		VkShaderModule m_Shader = VK_NULL_HANDLE;

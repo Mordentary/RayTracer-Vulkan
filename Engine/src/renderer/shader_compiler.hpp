@@ -3,28 +3,38 @@
 #include <vector>
 #include <cstdint>
 #include "RHI\types.hpp"
+#define NOMINMAX
+#include <wrl.h>
 
+class IDxcUtils;
+class IDxcCompiler3;
+class IDxcIncludeHandler;
 namespace SE
 {
 	class Renderer;
+
 	class ShaderCompiler
 	{
 	public:
-		// Constructor that takes a Renderer pointer
 		ShaderCompiler(Renderer* renderer);
+		~ShaderCompiler();
 
-		// Compiles a shader given source file, entry point, shader type, defines, and output binary.
-		// The backend is derived from the renderer's device.
-		bool compile(
+		bool compile(const std::string& source,
 			const std::string& file,
-			const std::string& entry_point,
+			const std::string& entryPoint,
 			rhi::ShaderType type,
 			const std::vector<std::string>& defines,
-			std::vector<uint8_t>& output
-		);
+			std::vector<std::byte>& output);
 
 	private:
-		bool readFileToString(const std::string& path, std::string& content);
-		Renderer* m_pRenderer = nullptr;
+		Renderer* m_Renderer = nullptr;
+		struct DxcHandles
+		{
+			Microsoft::WRL::ComPtr<IDxcUtils>  utils;
+			Microsoft::WRL::ComPtr<IDxcCompiler3> compiler;
+			Microsoft::WRL::ComPtr<IDxcIncludeHandler> defaultIncludeHandler;
+		};
+		DxcHandles m_Dxc;
+		bool initializeDxc();
 	};
 }

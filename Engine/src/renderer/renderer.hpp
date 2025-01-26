@@ -3,6 +3,7 @@
 #include "../RHI/rhi.hpp"
 #include "staging_buffer_allocator.hpp"
 #include "render_graph\render_graph.hpp"
+#include "shader_cache.hpp"
 
 #include"glm\glm.hpp"
 
@@ -23,9 +24,10 @@ namespace SE
 		void setupGlobalConstants(rhi::ICommandList* pCommandList);
 		void renderFrame();
 		rhi::IDevice* getDevice() const { return m_Device.get(); }
+		ShaderCompiler* getShaderCompiler() const { return m_ShaderCompiler.get(); }
 		uint64_t getFrameID() { return m_Device->getFrameID(); };
 		rhi::ISwapchain* getSwapchain() const { return m_Swapchain.get(); }
-		rhi::ITexture* getRenderTarget() const { return m_RTColor.get(); }
+		rhi::ITexture* getRenderTarget() const { return m_OutputTextureColor.get(); }
 		void uploadTexture(rhi::ITexture* texture, const void* data);
 		void uploadBuffer(rhi::IBuffer* buffer, uint32_t offset, const void* data, uint32_t data_size);
 	private:
@@ -33,16 +35,18 @@ namespace SE
 		Scoped<rhi::ISwapchain> m_Swapchain = nullptr;
 		glm::vec2 m_WindowSize{};
 		glm::vec2 m_RenderTargetSize{};
-		Scoped<rhi::ITexture> m_RTColor{};
-		Scoped<rhi::ITexture> m_RTDepth{};
+
+		Scoped<rhi::ITexture> m_OutputTextureColor{};
+		Scoped<rhi::ITexture> m_OutputTextureDepth{};
 		RGHandle m_OutputColorHandle;
 		RGHandle m_OutputDepthHandle;
 
 		Scoped<rhi::IPipelineState> m_DefaultPipeline;
 		Scoped<RenderGraph> m_RenderGraph;
 
-		Scoped<rhi::IShader> m_TestShaderVS;
-		Scoped<rhi::IShader> m_TestShaderPS;
+		rhi::IShader* m_TestShaderVS;
+		rhi::IShader* m_TestShaderPS;
+
 		Scoped<rhi::IBuffer> m_VertexBuffer;
 
 		struct FrameResources {
@@ -60,7 +64,9 @@ namespace SE
 		std::array<FrameResources, SE_MAX_FRAMES_IN_FLIGHT> m_FrameResources{};
 		rhi::IDescriptor* m_VertexBufferDescriptor = nullptr;
 
-		ShaderCompiler* m_Compiler;
+		Scoped<ShaderCompiler> m_ShaderCompiler;
+		Scoped<ShaderCache> m_ShaderCache;
+
 		struct TextureUpload
 		{
 			rhi::ITexture* texture;
