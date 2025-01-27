@@ -25,6 +25,7 @@ namespace SE
 		void renderFrame();
 		rhi::IDevice* getDevice() const { return m_Device.get(); }
 		ShaderCompiler* getShaderCompiler() const { return m_ShaderCompiler.get(); }
+		ShaderCache* getShaderCache() const { return m_ShaderCache.get(); }
 		uint64_t getFrameID() { return m_Device->getFrameID(); };
 		rhi::ISwapchain* getSwapchain() const { return m_Swapchain.get(); }
 		rhi::ITexture* getRenderTarget() const { return m_OutputTextureColor.get(); }

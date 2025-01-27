@@ -10,8 +10,8 @@ namespace SE
 	Renderer::Renderer()
 	{
 		Engine::getInstance().getWindow().WindowResizeSignal.connect(&Renderer::onWindowResize, this);
-		m_ShaderCompiler = createScoped<ShaderCompiler>(this);
 		m_ShaderCache = createScoped<ShaderCache>(this);
+		m_ShaderCompiler = createScoped<ShaderCompiler>(this);
 	}
 	Renderer::~Renderer()
 	{

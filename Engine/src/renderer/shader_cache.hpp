@@ -31,12 +31,12 @@ namespace SE
 		ShaderCache() = default;
 		ShaderCache(Renderer* renderer);
 		rhi::IShader* getShader(const std::string& file, const std::string& entry_point, rhi::ShaderType type, const std::vector<std::string>& defines);
+		std::string getCachedFileContent(const std::string& file);
 
 	private:
 		rhi::IShader* createShader(const std::string& file, const std::string& entry_point, rhi::ShaderType type, const std::vector<std::string>& defines);
 		void recompileShader(rhi::IShader* shader);
 		static inline std::string loadFile(const std::string& path);
-		std::string getCachedFileContent(const std::string& file);
 		void reloadShaders();
 
 	private:
