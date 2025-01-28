@@ -40,7 +40,7 @@ namespace rhi::vulkan {
 
 		if (anySet(m_Description.usage, BufferUsageFlags::FormattedBuffer))
 		{
-			if (anySet(m_Description.usage, BufferUsageFlags::StorageBuffer))
+			if (anySet(m_Description.usage, BufferUsageFlags::ShaderStorageBuffer))
 			{
 				bufferInfo.usage |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
 			}

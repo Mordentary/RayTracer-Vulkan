@@ -364,14 +364,13 @@ namespace rhi {
 		IShader* computeShader = nullptr;
 	};
 
-	// Bit Flags and Operators
 	enum class BufferUsageFlags : uint32_t {
 		None = 0,
 		StructuredBuffer = 1 << 0,
 		FormattedBuffer = 1 << 1,
 		UniformBuffer = 1 << 2,
 		RawBuffer = 1 << 3,
-		StorageBuffer = 1 << 4,
+		ShaderStorageBuffer = 1 << 4,
 	};
 
 	inline BufferUsageFlags operator|(BufferUsageFlags a, BufferUsageFlags b) {

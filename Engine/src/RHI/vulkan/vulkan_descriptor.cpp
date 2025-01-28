@@ -208,7 +208,7 @@ namespace rhi::vulkan
 		case UnorderedAccessDescriptorType::StructuredBuffer: {
 			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::StructuredBuffer));
-			assert(anySet(bufferDesc.usage, BufferUsageFlags::StorageBuffer));
+			assert(anySet(bufferDesc.usage, BufferUsageFlags::ShaderStorageBuffer));
 			assert(m_Description.format == Format::Unknown);
 			assert(m_Description.buffer.offset % bufferDesc.stride == 0);
 			assert(m_Description.buffer.size % bufferDesc.stride == 0);
@@ -225,7 +225,7 @@ namespace rhi::vulkan
 		case UnorderedAccessDescriptorType::FormattedBuffer: {
 			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::FormattedBuffer));
-			assert(anySet(bufferDesc.usage, BufferUsageFlags::StorageBuffer));
+			assert(anySet(bufferDesc.usage, BufferUsageFlags::ShaderStorageBuffer));
 			assert(m_Description.buffer.offset % bufferDesc.stride == 0);
 			assert(m_Description.buffer.size % bufferDesc.stride == 0);
 
@@ -242,7 +242,7 @@ namespace rhi::vulkan
 		case UnorderedAccessDescriptorType::RawBuffer: {
 			const BufferDescription& bufferDesc = ((IBuffer*)m_Resource)->getDescription();
 			assert(anySet(bufferDesc.usage, BufferUsageFlags::RawBuffer));
-			assert(anySet(bufferDesc.usage, BufferUsageFlags::StorageBuffer));
+			assert(anySet(bufferDesc.usage, BufferUsageFlags::ShaderStorageBuffer));
 			assert(bufferDesc.stride % 4 == 0);
 			assert(m_Description.buffer.offset % 4 == 0);
 			assert(m_Description.buffer.size % 4 == 0);
