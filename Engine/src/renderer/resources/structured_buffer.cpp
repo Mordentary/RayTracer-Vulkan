@@ -1,24 +1,22 @@
-#include "renderer/resources/raw_buffer.hpp"
+#include "renderer/resources/structured_buffer.hpp"
 #include "core/engine.hpp"
 #include "renderer/renderer.hpp"
 namespace SE
 {
-	RawBuffer::RawBuffer(const std::string& name) : m_DebugName(name)
+	StructuredBuffer::StructuredBuffer(const std::string& name) : m_DebugName(name)
 	{
 	}
-	bool RawBuffer::create(size_t size, rhi::MemoryType memType, bool uav)
+	bool StructuredBuffer::create(uint32_t stride, uint32_t elementCount, rhi::MemoryType memType, bool uav)
 	{
 		Renderer* pRenderer = &Engine::getInstance().getRenderer();
 		rhi::IDevice* pDevice = pRenderer->getDevice();
 
-		SE_ASSERT(size % 4 == 0);
-
 		rhi::BufferDescription desc;
-		desc.stride = 4;
-		desc.size = size;
-		desc.format = rhi::Format::R32_SFLOAT;
+		desc.stride = stride;
+		desc.size = elementCount * stride;
+		desc.format = rhi::Format::Unknown;
 		desc.memoryType = memType;
-		desc.usage = rhi::BufferUsageFlags::RawBuffer;
+		desc.usage = rhi::BufferUsageFlags::StructuredBuffer;
 
 		if (uav)
 			desc.usage |= rhi::BufferUsageFlags::ShaderStorageBuffer;
@@ -32,8 +30,8 @@ namespace SE
 		m_Buffer.reset(pBuffer);
 
 		rhi::ShaderResourceViewDescriptorDescription srvDesc;
-		srvDesc.buffer.size = size;
-		srvDesc.type = rhi::ShaderResourceViewDescriptorType::RawBuffer;
+		srvDesc.buffer.size = elementCount * stride;
+		srvDesc.type = rhi::ShaderResourceViewDescriptorType::StructuredBuffer;
 
 		auto pSrvDescriptor = pDevice->createShaderResourceViewDescriptor(m_Buffer.get(), srvDesc, (m_DebugName + ":SRV_DESCRIPTOR"));
 		if (!pSrvDescriptor)
@@ -43,8 +41,8 @@ namespace SE
 		if (uav)
 		{
 			rhi::UnorderedAccessDescriptorDescription uavDesc;
-			srvDesc.buffer.size = size;
-			srvDesc.type = rhi::ShaderResourceViewDescriptorType::RawBuffer;
+			srvDesc.buffer.size = elementCount * stride;
+			srvDesc.type = rhi::ShaderResourceViewDescriptorType::StructuredBuffer;
 
 			auto pUavDescriptor = pDevice->createUnorderedAccessDescriptor(m_Buffer.get(), uavDesc, (m_DebugName + ":UAV_DESCRIPTOR"));
 			if (!pUavDescriptor)

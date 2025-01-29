@@ -46,4 +46,5 @@ namespace rhi {
 
 	uint32_t calcSubresource(const TextureDescription& desc, uint32_t mip, uint32_t slice);
 	void decomposeSubresource(const TextureDescription& desc, uint32_t subresource, uint32_t& mip, uint32_t& slice);
+	uint32_t getFormatRowPitch(Format format, uint32_t width);
 }

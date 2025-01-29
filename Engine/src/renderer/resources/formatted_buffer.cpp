@@ -1,24 +1,24 @@
-#include "renderer/resources/raw_buffer.hpp"
+#include "renderer/resources/formatted_buffer.hpp"
 #include "core/engine.hpp"
 #include "renderer/renderer.hpp"
 namespace SE
 {
-	RawBuffer::RawBuffer(const std::string& name) : m_DebugName(name)
+	FormattedBuffer::FormattedBuffer(const std::string& name) : m_DebugName(name)
 	{
 	}
-	bool RawBuffer::create(size_t size, rhi::MemoryType memType, bool uav)
+	bool FormattedBuffer::create(rhi::Format format, uint32_t elementsCount, rhi::MemoryType memType, bool uav)
 	{
 		Renderer* pRenderer = &Engine::getInstance().getRenderer();
 		rhi::IDevice* pDevice = pRenderer->getDevice();
 
-		SE_ASSERT(size % 4 == 0);
+		uint32_t stride = getFormatRowPitch(format, 1);
 
 		rhi::BufferDescription desc;
-		desc.stride = 4;
-		desc.size = size;
-		desc.format = rhi::Format::R32_SFLOAT;
+		desc.stride = stride;
+		desc.size = stride * elementsCount;
+		desc.format = format;
 		desc.memoryType = memType;
-		desc.usage = rhi::BufferUsageFlags::RawBuffer;
+		desc.usage = rhi::BufferUsageFlags::FormattedBuffer;
 
 		if (uav)
 			desc.usage |= rhi::BufferUsageFlags::ShaderStorageBuffer;
@@ -32,8 +32,8 @@ namespace SE
 		m_Buffer.reset(pBuffer);
 
 		rhi::ShaderResourceViewDescriptorDescription srvDesc;
-		srvDesc.buffer.size = size;
-		srvDesc.type = rhi::ShaderResourceViewDescriptorType::RawBuffer;
+		srvDesc.buffer.size = stride * elementsCount;
+		srvDesc.type = rhi::ShaderResourceViewDescriptorType::FormattedBuffer;
 
 		auto pSrvDescriptor = pDevice->createShaderResourceViewDescriptor(m_Buffer.get(), srvDesc, (m_DebugName + ":SRV_DESCRIPTOR"));
 		if (!pSrvDescriptor)
@@ -43,8 +43,8 @@ namespace SE
 		if (uav)
 		{
 			rhi::UnorderedAccessDescriptorDescription uavDesc;
-			srvDesc.buffer.size = size;
-			srvDesc.type = rhi::ShaderResourceViewDescriptorType::RawBuffer;
+			srvDesc.buffer.size = stride * elementsCount;
+			srvDesc.type = rhi::ShaderResourceViewDescriptorType::FormattedBuffer;
 
 			auto pUavDescriptor = pDevice->createUnorderedAccessDescriptor(m_Buffer.get(), uavDesc, (m_DebugName + ":UAV_DESCRIPTOR"));
 			if (!pUavDescriptor)

@@ -381,6 +381,11 @@ namespace rhi {
 		return static_cast<BufferUsageFlags>(static_cast<int>(a) & static_cast<int>(b));
 	}
 
+	inline BufferUsageFlags& operator|=(BufferUsageFlags& a, BufferUsageFlags b) {
+		a = a | b;
+		return a;
+	}
+
 	enum class TextureUsageFlags : uint32_t {
 		None = 0,
 		RenderTarget = 1 << 0,

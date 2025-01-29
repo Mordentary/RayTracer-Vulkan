@@ -4,11 +4,11 @@
 #include<string>
 namespace SE
 {
-	class RawBuffer
+	class FormattedBuffer
 	{
 	public:
-		RawBuffer(const std::string& name);
-		bool create(size_t bufferSize, rhi::MemoryType memType, bool uav);
+		FormattedBuffer(const std::string& name);
+		bool create(rhi::Format format, uint32_t elementsCount, rhi::MemoryType memType, bool uav);
 
 		rhi::IBuffer* getBuffer() { return m_Buffer.get(); }
 		rhi::IDescriptor* getUAV() { return m_UAV.get(); }
