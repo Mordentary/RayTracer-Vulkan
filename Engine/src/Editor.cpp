@@ -1,6 +1,7 @@
 // editor.cpp
 #include "Editor.hpp"
 #include "core/engine.hpp"
+#include "renderer/renderer.hpp"
 #include "RHI/vulkan/vulkan_device.hpp"
 #include "RHI/vulkan/vulkan_swapchain.hpp"
 

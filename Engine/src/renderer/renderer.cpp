@@ -1,10 +1,15 @@
-#include"renderer.hpp"
-#include"core/engine.hpp"
+#include "renderer.hpp"
 #include"shader_compiler.hpp"
+#include "render_graph/render_graph_builder.hpp"
+#include "resources/raw_buffer.hpp"
+#include "resources/formatted_buffer.hpp"
+#include "resources/structured_buffer.hpp"
+
+#include "gpu_scene.hpp"
+
 using uint = uint32_t;
 #include"global_constants.hlsli"
 using namespace rhi;
-#include "render_graph/render_graph_builder.hpp"
 namespace SE
 {
 	Renderer::Renderer()
@@ -13,6 +18,7 @@ namespace SE
 		m_ShaderCache = createScoped<ShaderCache>(this);
 		m_ShaderCompiler = createScoped<ShaderCompiler>(this);
 	}
+
 	Renderer::~Renderer()
 	{
 		if (m_RenderGraph)
@@ -44,6 +50,7 @@ namespace SE
 		SE_ASSERT(device.get(), "Device creation is failed");
 		m_Device = std::move(device);
 		SE_ASSERT(m_Device.get(), "Device is null");
+		//m_GpuScene = createScoped<GpuScene>(this);
 
 		rhi::SwapchainDescription swapchainDesc;
 		swapchainDesc.windowHandle = window_handle;
@@ -129,25 +136,23 @@ namespace SE
 			{ glm::vec3(-0.5f, -0.5f,  0.5f) }  // Front Left
 		};
 
-		// Define rotation parameters
 		float angleDegrees = 35.0f;
 		glm::vec3 axis(1.0f, 1.0f, 0.0f); // Rotate around Y-axis
 
-		// Create the rotation matrix using GLM
 		glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(angleDegrees), axis);
 
-		// Prepare a vector to hold rotated vertices
 		std::vector<Vertex> rotatedCube;
 		rotatedCube.reserve(cubeVertices.size());
 
-		// Use std::transform with a lambda to apply rotation
 		std::transform(cubeVertices.begin(), cubeVertices.end(), std::back_inserter(rotatedCube),
 			[&rotationMatrix](const Vertex& vert) -> Vertex {
-				glm::vec4 pos4(vert.position, 1.0f);        // Convert to 4D for matrix multiplication
-				glm::vec4 rotatedPos = rotationMatrix * pos4; // Apply rotation
-				return Vertex{ glm::vec3(rotatedPos) };      // Convert back to 3D
+				glm::vec4 pos4(vert.position, 1.0f);
+				glm::vec4 rotatedPos = rotationMatrix * pos4;
+				return Vertex{ glm::vec3(rotatedPos) };
 			}
 		);
+
+		//m_VertexBuffer.reset(createStructuredBuffer(rotatedCube.data(), sizeof(Vertex), rotatedCube.size(), "CubeVerticesBuffer"));
 
 		uint32_t vertexBufferSize = rotatedCube.size() * sizeof(Vertex);
 		BufferDescription vertexBufferDescription;
@@ -163,7 +168,7 @@ namespace SE
 		vertexBufferDescriptorDesc.buffer.size = vertexBufferSize;
 		vertexBufferDescriptorDesc.buffer.offset = 0;
 		vertexBufferDescriptorDesc.type = ShaderResourceViewDescriptorType::RawBuffer;
-		m_VertexBufferDescriptor = m_Device->createShaderResourceViewDescriptor(m_VertexBuffer.get(), vertexBufferDescriptorDesc, "VertexBufferDescriptor");
+		m_VertexBufferSRV = m_Device->createShaderResourceViewDescriptor(m_VertexBuffer.get(), vertexBufferDescriptorDesc, "VertexBufferDescriptor");
 	}
 
 	void Renderer::createRenderTarget(uint32_t renderWidth, uint32_t renderHeight)
@@ -185,6 +190,58 @@ namespace SE
 		textAttachDesc.format = Format::D32_SFLOAT;
 		m_OutputTextureDepth.reset(m_Device->createTexture(textAttachDesc, "MainRenderTarget:Depth"));
 	}
+
+	RawBuffer* Renderer::createRawBuffer(const void* data, uint32_t size, const std::string& name, rhi::MemoryType memType, bool uav)
+	{
+		RawBuffer* buffer = new RawBuffer(name);
+		if (!buffer->create(size, memType, uav))
+		{
+			delete buffer;
+			return nullptr;
+		}
+
+		if (data)
+		{
+			uploadBuffer(buffer->getBuffer(), 0, data, size);
+		}
+
+		return buffer;
+	}
+
+	StructuredBuffer* Renderer::createStructuredBuffer(const void* data, uint32_t stride, uint32_t elementCount, const std::string& name, rhi::MemoryType memType, bool uav)
+	{
+		StructuredBuffer* buffer = new StructuredBuffer(name);
+		if (!buffer->create(stride, elementCount, memType, uav))
+		{
+			delete buffer;
+			return nullptr;
+		}
+
+		if (data)
+		{
+			uploadBuffer(buffer->getBuffer(), 0, data, stride * elementCount);
+		}
+
+		return buffer;
+	}
+
+	FormattedBuffer* Renderer::createFormattedBuffer(const void* data, rhi::Format format, uint32_t elementCount, const std::string& name, rhi::MemoryType memType, bool uav)
+	{
+		FormattedBuffer* buffer = new FormattedBuffer(name);
+		if (!buffer->create(format, elementCount, memType, uav))
+		{
+			delete buffer;
+			return nullptr;
+		}
+
+		if (data)
+		{
+			uploadBuffer(buffer->getBuffer(), 0, data, rhi::getFormatRowPitch(format, 1) * elementCount);
+		}
+
+		return buffer;
+	}
+
 	void Renderer::renderFrame()
 	{
 		buildRenderGraph(m_OutputColorHandle, m_OutputDepthHandle);
@@ -393,7 +450,7 @@ namespace SE
 	void Renderer::setupGlobalConstants(rhi::ICommandList* cmd)
 	{
 		SceneConstant sceneCB;
-		sceneCB.vertexDataIndex = m_VertexBufferDescriptor->getDescriptorArrayIndex();
+		sceneCB.vertexDataIndex = m_VertexBufferSRV->getDescriptorArrayIndex();
 		cmd->setGraphicsConstants(2, &sceneCB, sizeof(SceneConstant));
 
 		if (cmd->getQueueType() == rhi::CommandType::Graphics)
@@ -411,12 +468,5 @@ namespace SE
 		ICommandList* computeCommandList = frame.computeCommandList.get();
 		m_RenderGraph->execute(this, commandList, computeCommandList);
 		copyToBackBuffer(commandList);
-
-		//m_RenderGraph->present(hBackBuffer, rhi::ResourceAccessFlags::Present);
-
-		//m_RenderGraph->compile();
-
-		//m_RenderGraph->execute(this, frame.commandList.get(), frame.computeCommandList.get());
-		//m_RenderGraph->clear();
 	}
 }

@@ -1,17 +1,19 @@
-#pragma once
-#include "engine_core.h"
-#include "../RHI/rhi.hpp"
-#include "staging_buffer_allocator.hpp"
-#include "render_graph\render_graph.hpp"
-#include "shader_cache.hpp"
-
-#include"glm\glm.hpp"
-
 #include <array>
-
+#include <vector>
+#include"core/engine.hpp"
+#include "engine_core.h"
+#include "render_graph/render_graph.hpp"
+#include "shader_cache.hpp"
+#include "staging_buffer_allocator.hpp"
+#include "glm/glm.hpp"
 namespace SE
 {
+	class GpuScene;
+	class RawBuffer;
+	class StructuredBuffer;
+	class FormattedBuffer;
 	class ShaderCompiler;
+
 	class Renderer
 	{
 	public:
@@ -19,6 +21,9 @@ namespace SE
 		~Renderer();
 		void createDevice(rhi::RenderBackend backend, void* window_handle, uint32_t window_width, uint32_t window_height);
 		void createRenderTarget(uint32_t renderWidth, uint32_t renderHeight);
+		RawBuffer* createRawBuffer(const void* data, uint32_t size, const std::string& name, rhi::MemoryType memType, bool uav = false);
+		StructuredBuffer* createStructuredBuffer(const void* data, uint32_t stride, uint32_t elementCount, const std::string& name, rhi::MemoryType memory_type = rhi::MemoryType::GpuOnly, bool uav = false);
+		FormattedBuffer* createFormattedBuffer(const void* data, rhi::Format format, uint32_t elementCount, const std::string& name, rhi::MemoryType memory_type = rhi::MemoryType::GpuOnly, bool uav = false);
 
 		void buildRenderGraph(RGHandle& outColor, RGHandle& outDepth);
 		void setupGlobalConstants(rhi::ICommandList* pCommandList);
@@ -49,6 +54,7 @@ namespace SE
 		rhi::IShader* m_TestShaderPS;
 
 		Scoped<rhi::IBuffer> m_VertexBuffer;
+		rhi::IDescriptor* m_VertexBufferSRV;
 
 		struct FrameResources {
 			uint64_t frameFenceValue = 0;
@@ -63,10 +69,10 @@ namespace SE
 		uint64_t m_CurrenFrameFenceValue = 0;
 		uint64_t m_CurrentUploadFenceValue = 0;
 		std::array<FrameResources, SE_MAX_FRAMES_IN_FLIGHT> m_FrameResources{};
-		rhi::IDescriptor* m_VertexBufferDescriptor = nullptr;
 
 		Scoped<ShaderCompiler> m_ShaderCompiler;
 		Scoped<ShaderCache> m_ShaderCache;
+		Scoped<GpuScene> m_GpuScene;
 
 		struct TextureUpload
 		{

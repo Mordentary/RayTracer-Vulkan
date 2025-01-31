@@ -1,0 +1,6 @@
+namespace SE
+{
+	class Material
+	{
+	};
+}

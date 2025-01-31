@@ -1,9 +1,10 @@
 #include "shader_compiler.hpp"
+#include "core\engine.hpp"
+#include "renderer\renderer.hpp"
+
 #include <windows.h>
 #include <fstream>
 #include <sstream>
-#include <renderer\renderer.hpp>
-#include <core\engine.hpp>
 #include <dxcapi.h>
 
 namespace SE

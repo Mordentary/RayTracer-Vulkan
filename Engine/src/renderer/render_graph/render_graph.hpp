@@ -66,10 +66,10 @@ namespace SE
 		RenderGraphResourceAllocator m_ResourceAllocator;
 		DirectedAcyclicGraph m_Graph;
 
-		std::unique_ptr<rhi::IFence> m_ComputeQueueFence;
+		Scoped<rhi::IFence> m_ComputeQueueFence;
 		uint64_t m_ComputeQueueFenceValue = 0;
 
-		std::unique_ptr<rhi::IFence> m_GraphicsQueueFence;
+		Scoped<rhi::IFence> m_GraphicsQueueFence;
 		uint64_t m_GraphicsQueueFenceValue = 0;
 
 		std::vector<RenderGraphPassBase*> m_Passes;

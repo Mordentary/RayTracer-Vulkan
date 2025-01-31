@@ -5,7 +5,6 @@
 #include <camera.h>
 #include <engine_core.h>
 #include <RHI\swapchain.hpp>
-#include <renderer\renderer.hpp>
 #include "window.hpp"
 #include "string"
 namespace SE
@@ -13,6 +12,7 @@ namespace SE
 	// Forward declarations
 	struct MeshAsset;
 	struct LoadedGLTF;
+	struct Renderer;
 
 	// Vulkan engine class
 	class Engine {
