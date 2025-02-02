@@ -5,6 +5,8 @@
 #include "resources/formatted_buffer.hpp"
 #include "resources/structured_buffer.hpp"
 
+#include "gpu_scene.hlsli"
+
 #include "gpu_scene.hpp"
 
 using uint = uint32_t;
@@ -27,9 +29,6 @@ namespace SE
 		}
 		Engine::getInstance().getWindow().WindowResizeSignal.disconnect(&Renderer::onWindowResize, this);
 	}
-	struct Vertex {
-		glm::vec3 position;
-	};
 	void Renderer::createDevice(rhi::RenderBackend backend, void* window_handle, uint32_t window_width, uint32_t window_height)
 	{
 		m_WindowSize.x = window_width;
@@ -50,7 +49,7 @@ namespace SE
 		SE_ASSERT(device.get(), "Device creation is failed");
 		m_Device = std::move(device);
 		SE_ASSERT(m_Device.get(), "Device is null");
-		//m_GpuScene = createScoped<GpuScene>(this);
+		m_GpuScene = createScoped<GpuScene>(this);
 
 		rhi::SwapchainDescription swapchainDesc;
 		swapchainDesc.windowHandle = window_handle;
@@ -82,58 +81,58 @@ namespace SE
 
 		std::vector<Vertex> cubeVertices = {
 			// Front Face (+Z)
-			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Right
-			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Right
+			{ hlslpp::float3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
+			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Bottom Right
+			{ hlslpp::float3(0.5f,  0.5f,  0.5f) }, // Top Right
 
-			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
-			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Right
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Left
+			{ hlslpp::float3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
+			{ hlslpp::float3(0.5f,  0.5f,  0.5f) }, // Top Right
+			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Top Left
 
 			// Back Face (-Z)
-			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Right
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Left
-			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Left
+			{ hlslpp::float3(0.5f, -0.5f, -0.5f) }, // Bottom Right
+			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Bottom Left
+			{ hlslpp::float3(-0.5f,  0.5f, -0.5f) }, // Top Left
 
-			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Right
-			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Left
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Right
+			{ hlslpp::float3(0.5f, -0.5f, -0.5f) }, // Bottom Right
+			{ hlslpp::float3(-0.5f,  0.5f, -0.5f) }, // Top Left
+			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Top Right
 
 			// Left Face (-X)
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
-			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Front
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Front
+			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
+			{ hlslpp::float3(-0.5f, -0.5f,  0.5f) }, // Bottom Front
+			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Top Front
 
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Front
-			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Back
+			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
+			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Top Front
+			{ hlslpp::float3(-0.5f,  0.5f, -0.5f) }, // Top Back
 
 			// Right Face (+X)
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Front
-			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Back
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Back
+			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Bottom Front
+			{ hlslpp::float3(0.5f, -0.5f, -0.5f) }, // Bottom Back
+			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Top Back
 
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Front
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Back
-			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Front
+			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Bottom Front
+			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Top Back
+			{ hlslpp::float3(0.5f,  0.5f,  0.5f) }, // Top Front
 
 			// Top Face (+Y)
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Front Left
-			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Front Right
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Back Right
+			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Front Left
+			{ hlslpp::float3(0.5f,  0.5f,  0.5f) }, // Front Right
+			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Back Right
 
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Front Left
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Back Right
-			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Back Left
+			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Front Left
+			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Back Right
+			{ hlslpp::float3(-0.5f,  0.5f, -0.5f) }, // Back Left
 
 			// Bottom Face (-Y)
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Back Left
-			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Back Right
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Front Right
+			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Back Left
+			{ hlslpp::float3(0.5f, -0.5f, -0.5f) }, // Back Right
+			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Front Right
 
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Back Left
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Front Right
-			{ glm::vec3(-0.5f, -0.5f,  0.5f) }  // Front Left
+			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Back Left
+			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Front Right
+			{ hlslpp::float3(-0.5f, -0.5f,  0.5f) }  // Front Left
 		};
 
 		float angleDegrees = 35.0f;
@@ -146,29 +145,30 @@ namespace SE
 
 		std::transform(cubeVertices.begin(), cubeVertices.end(), std::back_inserter(rotatedCube),
 			[&rotationMatrix](const Vertex& vert) -> Vertex {
-				glm::vec4 pos4(vert.position, 1.0f);
+				glm::vec4 pos4(vert.position.x, vert.position.y, vert.position.z, 1.0f);
 				glm::vec4 rotatedPos = rotationMatrix * pos4;
-				return Vertex{ glm::vec3(rotatedPos) };
+				return Vertex{ float3(rotatedPos.x,rotatedPos.y,rotatedPos.z) };
 			}
 		);
 
-		//m_VertexBuffer.reset(createStructuredBuffer(rotatedCube.data(), sizeof(Vertex), rotatedCube.size(), "CubeVerticesBuffer"));
+		InstanceData data;
+		OffsetAllocator::Allocation posAlloc = m_GpuScene->allocateStaticBuffer(rotatedCube.size() * sizeof(Vertex));
+		data.posBufferAddress = posAlloc.offset;
 
-		uint32_t vertexBufferSize = rotatedCube.size() * sizeof(Vertex);
-		BufferDescription vertexBufferDescription;
-		vertexBufferDescription.memoryType = MemoryType::GpuOnly;
-		vertexBufferDescription.size = vertexBufferSize;
-		vertexBufferDescription.usage = BufferUsageFlags::RawBuffer;
-		vertexBufferDescription.stride = sizeof(Vertex);
-		m_VertexBuffer = Scoped<rhi::IBuffer>(m_Device->createBuffer(vertexBufferDescription, "VertexBuffer"));
+		m_GpuScene->addInstance(data);
+	}
 
-		uploadBuffer(m_VertexBuffer.get(), 0, rotatedCube.data(), vertexBufferSize);
+	uint32_t Renderer::allocateSceneConstant(const void* data, uint32_t size)
+	{
+		uint32_t address = m_GpuScene->allocateConstantBuffer(size);
 
-		ShaderResourceViewDescriptorDescription vertexBufferDescriptorDesc;
-		vertexBufferDescriptorDesc.buffer.size = vertexBufferSize;
-		vertexBufferDescriptorDesc.buffer.offset = 0;
-		vertexBufferDescriptorDesc.type = ShaderResourceViewDescriptorType::RawBuffer;
-		m_VertexBufferSRV = m_Device->createShaderResourceViewDescriptor(m_VertexBuffer.get(), vertexBufferDescriptorDesc, "VertexBufferDescriptor");
+		if (data)
+		{
+			void* dst = (char*)m_GpuScene->getSceneConstantBuffer()->getCpuAddress() + address;
+			memcpy(dst, data, size);
+		}
+
+		return address;
 	}
 
 	void Renderer::createRenderTarget(uint32_t renderWidth, uint32_t renderHeight)
@@ -244,11 +244,13 @@ namespace SE
 
 	void Renderer::renderFrame()
 	{
+		m_GpuScene->update();
 		buildRenderGraph(m_OutputColorHandle, m_OutputDepthHandle);
 		beginFrame();
 		uploadResources();
 		render();
 		endFrame();
+		m_GpuScene->resetFrameData();
 	}
 	void Renderer::uploadTexture(rhi::ITexture* texture, const void* data)
 	{
@@ -450,7 +452,10 @@ namespace SE
 	void Renderer::setupGlobalConstants(rhi::ICommandList* cmd)
 	{
 		SceneConstant sceneCB;
-		sceneCB.vertexDataIndex = m_VertexBufferSRV->getDescriptorArrayIndex();
+		sceneCB.instanceDataAddress = m_GpuScene->getInstanceAddress();
+		sceneCB.sceneStaticBufferSRV = m_GpuScene->getSceneStaticBufferSRV()->getDescriptorArrayIndex();
+		sceneCB.sceneConstantBufferSRV = m_GpuScene->getSceneConstantSRV()->getDescriptorArrayIndex();;
+
 		cmd->setGraphicsConstants(2, &sceneCB, sizeof(SceneConstant));
 
 		if (cmd->getQueueType() == rhi::CommandType::Graphics)

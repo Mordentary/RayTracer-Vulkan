@@ -43,6 +43,19 @@ namespace SE
 
 		return address;
 	}
+	uint32_t GpuScene::addInstance(const InstanceData& data)
+	{
+		m_InstanceData.push_back(data);
+		uint32_t instance_id = (uint32_t)m_InstanceData.size() - 1;
+
+		return instance_id;
+	}
+	void GpuScene::update()
+	{
+		uint32_t instance_count = (uint32_t)m_InstanceData.size();
+		m_InstanceDataAddress = m_pRenderer->allocateSceneConstant(m_InstanceData.data(), sizeof(InstanceData) * instance_count);
+	}
+
 	rhi::IBuffer* GpuScene::getSceneConstantBuffer() const
 	{
 		uint32_t frame_index = m_pRenderer->getFrameID() % SE_MAX_FRAMES_IN_FLIGHT;

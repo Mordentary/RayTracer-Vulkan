@@ -2,7 +2,7 @@
 #include "float.h"
 #include "hlslpp\hlsl++.h"
 #include <core\logger.hpp>
-
+using namespace hlslpp;
 namespace SE
 {
 	template<typename T>

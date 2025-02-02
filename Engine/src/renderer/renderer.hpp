@@ -24,6 +24,7 @@ namespace SE
 		RawBuffer* createRawBuffer(const void* data, uint32_t size, const std::string& name, rhi::MemoryType memType, bool uav = false);
 		StructuredBuffer* createStructuredBuffer(const void* data, uint32_t stride, uint32_t elementCount, const std::string& name, rhi::MemoryType memory_type = rhi::MemoryType::GpuOnly, bool uav = false);
 		FormattedBuffer* createFormattedBuffer(const void* data, rhi::Format format, uint32_t elementCount, const std::string& name, rhi::MemoryType memory_type = rhi::MemoryType::GpuOnly, bool uav = false);
+		uint32_t allocateSceneConstant(const void* data, uint32_t size);
 
 		void buildRenderGraph(RGHandle& outColor, RGHandle& outDepth);
 		void setupGlobalConstants(rhi::ICommandList* pCommandList);
@@ -53,8 +54,7 @@ namespace SE
 		rhi::IShader* m_TestShaderVS;
 		rhi::IShader* m_TestShaderPS;
 
-		Scoped<rhi::IBuffer> m_VertexBuffer;
-		rhi::IDescriptor* m_VertexBufferSRV;
+		Scoped<StructuredBuffer> m_VertexBuffer;
 
 		struct FrameResources {
 			uint64_t frameFenceValue = 0;

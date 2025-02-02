@@ -25,13 +25,17 @@
 
 // **Third-Party Libraries**
 
-// GLM - Mathematics library for graphics applications
+//Math
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 #include <glm/gtx/transform.hpp>
 #include <utils/math.hpp>
+#include <hlslpp/hlsl++.h>
+
+#include <utils\math.hpp>
+#include <utils\memory.hpp>
 
 // Vulkan Headers
 #include <engine_core.h>

@@ -247,6 +247,8 @@ namespace SE
 		rhi::ICommandList* pCommandList =
 			(m_Type == RenderPassType::AsyncCompute) ? context.computeCommandList : context.graphicsCommandList;
 
+		context.renderer->setupGlobalConstants(pCommandList);
+
 		// Possibly wait for another queue if needed
 		if (m_WaitValue != uint64_t(-1))
 		{

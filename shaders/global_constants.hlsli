@@ -2,7 +2,10 @@
 
 struct SceneConstant
 {
-    uint vertexDataIndex;
+    uint instanceDataAddress;
+    uint sceneConstantBufferSRV;
+    uint sceneStaticBufferSRV;
+
 };
 
 #ifndef __cplusplus
