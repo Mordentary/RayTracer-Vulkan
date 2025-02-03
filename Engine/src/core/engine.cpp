@@ -8,7 +8,6 @@ namespace SE
 	// Initialization
 	void Engine::create(uint32_t widthWin, uint32_t heightWin)
 	{
-		rpmalloc_initialize();
 		m_Window = createScoped<Window>("Singularity Engine", widthWin, heightWin);
 		m_Window->setEventCallback([this](const SDL_Event& event) {
 			handleEvent(event);

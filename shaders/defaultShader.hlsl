@@ -8,17 +8,14 @@ struct PSInput
 };
 
 // Vertex Shader
-PSInput VSMain(uint vertex_id : SV_VertexID)
+PSInput VSMain(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
 {
 	PSInput output;
 
-	// Get the vertex data using the provided vertex ID
-	Vertex v = getVertex(vertex_id);
+	Vertex v = GetVertex(instanceId, vertexId);
 
-	// Apply a simple transformation (identity for now)
 	output.position = float4(v.position, 1.0f);
 
-	// Assign a color based on position (for visualization)
 	output.color = v.position * 0.5f + 0.5f; // Normalize to [0, 1]
 
 	return output;

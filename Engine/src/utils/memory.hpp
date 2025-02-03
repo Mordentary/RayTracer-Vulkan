@@ -4,6 +4,11 @@
 #define MB(x) ((x) * (1ULL << 20))
 namespace SE
 {
+	static inline void SE_INIT_ALLOC()
+	{
+		rpmalloc_initialize();
+	}
+
 	static inline void* SE_ALLOC(size_t size)
 	{
 		return rpmalloc(size);

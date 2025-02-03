@@ -6,6 +6,7 @@
 #include <fstream>
 #include <sstream>
 #include <dxcapi.h>
+#include <iostream>
 
 namespace SE
 {
@@ -35,7 +36,8 @@ namespace SE
 		SE::ShaderCache* shaderCache,
 		Microsoft::WRL::ComPtr<IDxcUtils> dxcUtils,
 		const std::filesystem::path& shadersDir
-	) : m_ShaderCache(shaderCache), m_DxcUtils(dxcUtils), m_ShadersDir(shadersDir), m_Ref(0) {
+	) : m_ShaderCache(shaderCache), m_DxcUtils(dxcUtils), m_ShadersDir(shadersDir), m_Ref(0)
+	{
 	}
 
 	HRESULT STDMETHODCALLTYPE DXCIncludeHandler::LoadSource(
@@ -175,9 +177,13 @@ namespace SE
 		results->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr);
 		if (errors && errors->GetStringLength() > 0)
 		{
-			SE_ASSERT_MSG(false, "Shader compilation errors occurred");
+			// Retrieve the error message from the compiler
+			const char* errorMsg = static_cast<const char*>(errors->GetBufferPointer());
+			std::string errorStr(errorMsg, errors->GetStringLength());
+			// Print the compiler error
+			LogError("The error : {0}", errorStr);
+			SE_ASSERT_MSG(false, "Shader compilation errors occurred. ");
 		}
-
 		HRESULT status;
 		results->GetStatus(&status);
 		SE_ASSERT_MSG(SUCCEEDED(status), "Shader compilation failed");

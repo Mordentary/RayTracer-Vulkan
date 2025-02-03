@@ -4,12 +4,7 @@
 #include "resources/raw_buffer.hpp"
 #include "resources/formatted_buffer.hpp"
 #include "resources/structured_buffer.hpp"
-
 #include "gpu_scene.hlsli"
-
-#include "gpu_scene.hpp"
-
-using uint = uint32_t;
 #include"global_constants.hlsli"
 using namespace rhi;
 namespace SE
@@ -79,83 +74,104 @@ namespace SE
 		pipeDesc.depthStencil = depthInfo;
 		m_DefaultPipeline = Scoped<rhi::IPipelineState>(m_Device->createGraphicsPipelineState(pipeDesc, "TestGraphicsPipeline"));
 
-		std::vector<Vertex> cubeVertices = {
+		std::vector<glm::vec3> cubeVertices =
+		{
 			// Front Face (+Z)
-			{ hlslpp::float3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
-			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Bottom Right
-			{ hlslpp::float3(0.5f,  0.5f,  0.5f) }, // Top Right
+			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Right
+			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Right
 
-			{ hlslpp::float3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
-			{ hlslpp::float3(0.5f,  0.5f,  0.5f) }, // Top Right
-			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Top Left
+			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
+			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Right
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Left
 
 			// Back Face (-Z)
-			{ hlslpp::float3(0.5f, -0.5f, -0.5f) }, // Bottom Right
-			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Bottom Left
-			{ hlslpp::float3(-0.5f,  0.5f, -0.5f) }, // Top Left
+			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Right
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Left
+			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Left
 
-			{ hlslpp::float3(0.5f, -0.5f, -0.5f) }, // Bottom Right
-			{ hlslpp::float3(-0.5f,  0.5f, -0.5f) }, // Top Left
-			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Top Right
+			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Right
+			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Left
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Right
 
 			// Left Face (-X)
-			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
-			{ hlslpp::float3(-0.5f, -0.5f,  0.5f) }, // Bottom Front
-			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Top Front
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
+			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Front
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Front
 
-			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
-			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Top Front
-			{ hlslpp::float3(-0.5f,  0.5f, -0.5f) }, // Top Back
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Front
+			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Back
 
 			// Right Face (+X)
-			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Bottom Front
-			{ hlslpp::float3(0.5f, -0.5f, -0.5f) }, // Bottom Back
-			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Top Back
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Front
+			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Back
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Back
 
-			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Bottom Front
-			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Top Back
-			{ hlslpp::float3(0.5f,  0.5f,  0.5f) }, // Top Front
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Front
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Back
+			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Front
 
 			// Top Face (+Y)
-			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Front Left
-			{ hlslpp::float3(0.5f,  0.5f,  0.5f) }, // Front Right
-			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Back Right
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Front Left
+			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Front Right
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Back Right
 
-			{ hlslpp::float3(-0.5f,  0.5f,  0.5f) }, // Front Left
-			{ hlslpp::float3(0.5f,  0.5f, -0.5f) }, // Back Right
-			{ hlslpp::float3(-0.5f,  0.5f, -0.5f) }, // Back Left
+			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Front Left
+			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Back Right
+			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Back Left
 
 			// Bottom Face (-Y)
-			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Back Left
-			{ hlslpp::float3(0.5f, -0.5f, -0.5f) }, // Back Right
-			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Front Right
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Back Left
+			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Back Right
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Front Right
 
-			{ hlslpp::float3(-0.5f, -0.5f, -0.5f) }, // Back Left
-			{ hlslpp::float3(0.5f, -0.5f,  0.5f) }, // Front Right
-			{ hlslpp::float3(-0.5f, -0.5f,  0.5f) }  // Front Left
+			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Back Left
+			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Front Right
+			{ glm::vec3(-0.5f, -0.5f,  0.5f) }  // Front Left
 		};
 
-		float angleDegrees = 35.0f;
-		glm::vec3 axis(1.0f, 1.0f, 0.0f); // Rotate around Y-axis
+		float angleDegrees = 45.0f;
+		glm::vec3 axis(0.0f, 1.0f, 0.0f); // Rotate around Y-axis
 
 		glm::mat4 rotationMatrix = glm::rotate(glm::mat4(1.0f), glm::radians(angleDegrees), axis);
 
-		std::vector<Vertex> rotatedCube;
+		std::vector<glm::vec3> rotatedCube;
 		rotatedCube.reserve(cubeVertices.size());
 
 		std::transform(cubeVertices.begin(), cubeVertices.end(), std::back_inserter(rotatedCube),
-			[&rotationMatrix](const Vertex& vert) -> Vertex {
-				glm::vec4 pos4(vert.position.x, vert.position.y, vert.position.z, 1.0f);
+			[&rotationMatrix](const glm::vec3& vertPos) -> glm::vec3 {
+				glm::vec4 pos4(vertPos.x, vertPos.y, vertPos.z, 1.0f);
 				glm::vec4 rotatedPos = rotationMatrix * pos4;
-				return Vertex{ float3(rotatedPos.x,rotatedPos.y,rotatedPos.z) };
+				return glm::vec3(rotatedPos.x, rotatedPos.y, rotatedPos.z);
 			}
 		);
 
 		InstanceData data;
-		OffsetAllocator::Allocation posAlloc = m_GpuScene->allocateStaticBuffer(rotatedCube.size() * sizeof(Vertex));
-		data.posBufferAddress = posAlloc.offset;
-
+		data.posBufferAddress = allocateSceneStaticBuffer(rotatedCube.data(), rotatedCube.size() * sizeof(float3)).offset;
 		m_GpuScene->addInstance(data);
+	}
+
+	rhi::IBuffer* Renderer::getSceneStaticBuffer() const
+	{
+		return m_GpuScene->getSceneStaticBuffer();
+	}
+
+	OffsetAllocator::Allocation Renderer::allocateSceneStaticBuffer(const void* data, uint32_t size)
+	{
+		OffsetAllocator::Allocation allocation = m_GpuScene->allocateStaticBuffer(size);
+
+		if (data)
+		{
+			uploadBuffer(m_GpuScene->getSceneStaticBuffer(), allocation.offset, data, size);
+		}
+
+		return allocation;
+	}
+
+	void Renderer::freeSceneStaticBuffer(OffsetAllocator::Allocation allocation)
+	{
+		m_GpuScene->freeStaticBuffer(allocation);
 	}
 
 	uint32_t Renderer::allocateSceneConstant(const void* data, uint32_t size)

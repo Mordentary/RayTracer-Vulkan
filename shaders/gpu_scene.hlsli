@@ -17,14 +17,19 @@ struct Vertex
 #ifndef __cplusplus
 
 
-template<typename T>
+template<
+typename T>
 T LoadSceneStaticBuffer(uint bufferAddress, uint element_id)
 {
     ByteAddressBuffer sceneBuffer = ResourceDescriptorHeap[SceneCB.sceneStaticBufferSRV];
     return sceneBuffer.Load < T > (bufferAddress + sizeof(T) * element_id);
+
+
+
 }
 
-template<typename T>
+template<
+typename T>
 T LoadSceneConstantBuffer(uint bufferAddress)
 {
     ByteAddressBuffer constantBuffer = ResourceDescriptorHeap[SceneCB.sceneConstantBufferSRV];
@@ -33,19 +38,17 @@ T LoadSceneConstantBuffer(uint bufferAddress)
 
 InstanceData GetInstanceData(uint instance_id)
 {
-    return LoadSceneConstantBuffer <InstanceData> (SceneCB.instanceDataAddress + sizeof(InstanceData) * instance_id);
+    return LoadSceneConstantBuffer < InstanceData > (SceneCB.instanceDataAddress + sizeof(InstanceData) * instance_id);
 }
 
 
-Vertex getVertex(uint index)
+Vertex GetVertex(uint instance_id,  uint vertex_id)
 {
-    ByteAddressBuffer vertexBuffer = ResourceDescriptorHeap[SceneCB.vertexDataIndex];
-    // Calculate the byte offset to the desired vertex
-    uint byteOffset = index * sizeof(Vertex);
-    // Load the vertex data from the buffer
+    InstanceData instanceData = GetInstanceData(instance_id);
+
     Vertex v;
-    v = vertexBuffer.Load < Vertex > (byteOffset);
-    
+    v.position = LoadSceneStaticBuffer<float3>(instanceData.posBufferAddress, vertex_id);
+
     return v;
 }
 

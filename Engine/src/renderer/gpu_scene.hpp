@@ -1,3 +1,4 @@
+#pragma once
 #include "RHI/rhi.hpp"
 #include "engine_core.h"
 #include "offsetAllocator/offsetAllocator.hpp"

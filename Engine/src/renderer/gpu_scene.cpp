@@ -15,7 +15,8 @@ namespace SE
 
 		for (int i = 0; i < SE_MAX_FRAMES_IN_FLIGHT; ++i)
 		{
-			m_pConstantBuffer[i].reset(renderer->createRawBuffer(nullptr, MAX_CONSTANT_BUFFER_SIZE, "GpuScene::ConstantBuffer", rhi::MemoryType::CpuToGpu));
+			m_pConstantBuffer[i].reset(renderer->createRawBuffer(nullptr, MAX_CONSTANT_BUFFER_SIZE, "GPU_SCENE::ConstantBuffer", rhi::MemoryType::CpuToGpu));
+			m_pConstantBuffer[i]->getBuffer()->map();
 		}
 	}
 	GpuScene::~GpuScene()

@@ -7,6 +7,8 @@
 #include <RHI\swapchain.hpp>
 #include "window.hpp"
 #include "string"
+#include "utils/memory.hpp"
+
 namespace SE
 {
 	// Forward declarations
@@ -19,6 +21,7 @@ namespace SE
 	public:
 
 		SINGULARITY_API static Engine& getInstance() {
+			SE_INIT_ALLOC();
 			static Engine instance;
 			return instance;
 		}

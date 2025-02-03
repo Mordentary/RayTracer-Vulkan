@@ -37,6 +37,8 @@
 #include <utils\math.hpp>
 #include <utils\memory.hpp>
 
+#include"offsetAllocator\offsetAllocator.hpp"
+
 // Vulkan Headers
 #include <engine_core.h>
 
