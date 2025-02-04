@@ -4,6 +4,7 @@
 #include "resources/raw_buffer.hpp"
 #include "resources/formatted_buffer.hpp"
 #include "resources/structured_buffer.hpp"
+#include "resources/index_buffer.hpp"
 #include "gpu_scene.hlsli"
 #include"global_constants.hlsli"
 using namespace rhi;
@@ -76,59 +77,41 @@ namespace SE
 
 		std::vector<glm::vec3> cubeVertices =
 		{
-			// Front Face (+Z)
-			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Right
-			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Right
+			glm::vec3(-0.5f, -0.5f, -0.5f), // Vertex 0
+			glm::vec3(0.5f, -0.5f, -0.5f), // Vertex 1
+			glm::vec3(-0.5f,  0.5f, -0.5f), // Vertex 2
+			glm::vec3(0.5f,  0.5f, -0.5f), // Vertex 3
+			glm::vec3(-0.5f, -0.5f,  0.5f), // Vertex 4
+			glm::vec3(0.5f, -0.5f,  0.5f), // Vertex 5
+			glm::vec3(-0.5f,  0.5f,  0.5f), // Vertex 6
+			glm::vec3(0.5f,  0.5f,  0.5f)  // Vertex 7
+		};
 
-			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Left
-			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Right
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Left
+		std::vector<uint32_t> indices =
+		{
+			// Front Face (+Z): vertices 4, 5, 7, 6
+			4, 5, 7,  // Triangle 1
+			4, 7, 6,  // Triangle 2
 
-			// Back Face (-Z)
-			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Right
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Left
-			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Left
+			// Back Face (-Z): vertices 0, 1, 3, 2
+			1, 0, 2,  // Triangle 3
+			1, 2, 3,  // Triangle 4
 
-			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Right
-			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Left
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Right
+			// Left Face (-X): vertices 0, 4, 6, 2
+			0, 4, 6,  // Triangle 5
+			0, 6, 2,  // Triangle 6
 
-			// Left Face (-X)
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
-			{ glm::vec3(-0.5f, -0.5f,  0.5f) }, // Bottom Front
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Front
+			// Right Face (+X): vertices 5, 1, 3, 7
+			5, 1, 3,  // Triangle 7
+			5, 3, 7,  // Triangle 8
 
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Bottom Back
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Top Front
-			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Top Back
+			// Top Face (+Y): vertices 6, 7, 3, 2
+			6, 7, 3,  // Triangle 9
+			6, 3, 2,  // Triangle 10
 
-			// Right Face (+X)
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Front
-			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Bottom Back
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Back
-
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Bottom Front
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Top Back
-			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Top Front
-
-			// Top Face (+Y)
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Front Left
-			{ glm::vec3(0.5f,  0.5f,  0.5f) }, // Front Right
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Back Right
-
-			{ glm::vec3(-0.5f,  0.5f,  0.5f) }, // Front Left
-			{ glm::vec3(0.5f,  0.5f, -0.5f) }, // Back Right
-			{ glm::vec3(-0.5f,  0.5f, -0.5f) }, // Back Left
-
-			// Bottom Face (-Y)
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Back Left
-			{ glm::vec3(0.5f, -0.5f, -0.5f) }, // Back Right
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Front Right
-
-			{ glm::vec3(-0.5f, -0.5f, -0.5f) }, // Back Left
-			{ glm::vec3(0.5f, -0.5f,  0.5f) }, // Front Right
-			{ glm::vec3(-0.5f, -0.5f,  0.5f) }  // Front Left
+			// Bottom Face (-Y): vertices 0, 1, 5, 4
+			0, 1, 5,  // Triangle 11
+			0, 5, 4   // Triangle 12
 		};
 
 		float angleDegrees = 45.0f;
@@ -149,6 +132,7 @@ namespace SE
 
 		InstanceData data;
 		data.posBufferAddress = allocateSceneStaticBuffer(rotatedCube.data(), rotatedCube.size() * sizeof(float3)).offset;
+		data.indexBufferAddress = allocateSceneStaticBuffer(indices.data(), sizeof(uint32_t) * indices.size()).offset;
 		m_GpuScene->addInstance(data);
 	}
 
@@ -222,6 +206,25 @@ namespace SE
 		}
 
 		return buffer;
+	}
+
+	IndexBuffer* Renderer::createIndexBuffer(const void* data, uint32_t stride, uint32_t elementsCount, const std::string& name, rhi::MemoryType memType)
+	{
+		IndexBuffer* buffer = new IndexBuffer(name);
+		if (!buffer->create(stride, elementsCount, memType))
+		{
+			delete buffer;
+			return nullptr;
+		}
+
+		if (data)
+		{
+			uploadBuffer(buffer->getBuffer(), 0, data, stride * elementsCount);
+		}
+
+		return buffer;
+
+
 	}
 
 	StructuredBuffer* Renderer::createStructuredBuffer(const void* data, uint32_t stride, uint32_t elementCount, const std::string& name, rhi::MemoryType memType, bool uav)

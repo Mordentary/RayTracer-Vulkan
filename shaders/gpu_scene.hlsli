@@ -4,7 +4,7 @@
 struct InstanceData
 {
     uint posBufferAddress;
-    
+    uint indexBufferAddress;
 };
 
 
@@ -42,16 +42,30 @@ InstanceData GetInstanceData(uint instance_id)
 }
 
 
-Vertex GetVertex(uint instance_id,  uint vertex_id)
+//Vertex GetVertex(uint instance_id, uint vertex_id)
+//{
+//    InstanceData instanceData = GetInstanceData(instance_id);
+
+//    Vertex v;
+//    v.position = LoadSceneStaticBuffer <
+
+//    float3 > (instanceData.posBufferAddress, vertex_id);
+
+//    return v;
+//}
+
+Vertex GetVertex(uint instance_id, uint vertex_id)
 {
     InstanceData instanceData = GetInstanceData(instance_id);
 
     Vertex v;
-    v.position = LoadSceneStaticBuffer<float3>(instanceData.posBufferAddress, vertex_id);
+    v.position = LoadSceneStaticBuffer <
+
+    float3 > (instanceData.posBufferAddress, LoadSceneStaticBuffer <
+    uint > (instanceData.indexBufferAddress, vertex_id));
 
     return v;
 }
-
 
 
 #endif //__cplusplus

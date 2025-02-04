@@ -16,7 +16,7 @@ PSInput VSMain(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
 
 	output.position = float4(v.position, 1.0f);
 
-	output.color = v.position * 0.5f + 0.5f; // Normalize to [0, 1]
+	output.color = v.position * 0.5f + 0.5f;
 
 	return output;
 }
