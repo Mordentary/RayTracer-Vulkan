@@ -62,6 +62,13 @@ namespace SE {
 		ImGui_ImplVulkan_CreateFontsTexture();
 
 		//createViewportResources();
+
+		uint32_t width = m_Engine->getWindow().getWidth();
+		uint32_t height = m_Engine->getWindow().getHeight();
+
+		m_Viewport.renderTargetSize = glm::vec2(width, height);
+		m_Viewport.viewportSize = glm::vec2(width, height);
+		m_Viewport.viewportCenter = glm::vec2(width / 2, height / 2);
 	}
 
 	void Editor::createDescriptorPool() {

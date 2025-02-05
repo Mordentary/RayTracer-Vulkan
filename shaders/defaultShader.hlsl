@@ -12,9 +12,11 @@ PSInput VSMain(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
 {
 	PSInput output;
 
+	CameraConstant cb = GetCameraCB();
 	Vertex v = GetVertex(instanceId, vertexId);
 
-	output.position = float4(v.position, 1.0f);
+	float4 pos = mul(float4(v.position, 1.0f), cb.viewProjection);
+	output.position = pos;
 
 	output.color = v.position * 0.5f + 0.5f;
 

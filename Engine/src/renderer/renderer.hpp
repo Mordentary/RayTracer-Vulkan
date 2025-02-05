@@ -8,6 +8,7 @@
 #include "staging_buffer_allocator.hpp"
 #include "glm/glm.hpp"
 #include "gpu_scene.hpp"
+
 namespace SE
 {
 	class GpuScene;
@@ -16,6 +17,7 @@ namespace SE
 	class FormattedBuffer;
 	class IndexBuffer;
 	class ShaderCompiler;
+	class Camera;
 
 	class Renderer
 	{
@@ -28,9 +30,6 @@ namespace SE
 		IndexBuffer* createIndexBuffer(const void* data, uint32_t stride, uint32_t elementsCount, const std::string& name, rhi::MemoryType memType);
 		StructuredBuffer* createStructuredBuffer(const void* data, uint32_t stride, uint32_t elementCount, const std::string& name, rhi::MemoryType memory_type = rhi::MemoryType::GpuOnly, bool uav = false);
 		FormattedBuffer* createFormattedBuffer(const void* data, rhi::Format format, uint32_t elementCount, const std::string& name, rhi::MemoryType memory_type = rhi::MemoryType::GpuOnly, bool uav = false);
-
-
-
 
 		uint32_t allocateSceneConstant(const void* data, uint32_t size);
 		rhi::IBuffer* getSceneStaticBuffer() const;

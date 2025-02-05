@@ -223,8 +223,6 @@ namespace SE
 		}
 
 		return buffer;
-
-
 	}
 
 	StructuredBuffer* Renderer::createStructuredBuffer(const void* data, uint32_t stride, uint32_t elementCount, const std::string& name, rhi::MemoryType memType, bool uav)
@@ -471,6 +469,12 @@ namespace SE
 	void Renderer::setupGlobalConstants(rhi::ICommandList* cmd)
 	{
 		SceneConstant sceneCB;
+
+		CameraConstant camera_cb;
+		camera_cb.viewProjection = (glmMat4ToHlslpp(Engine::getInstance().getCamera().getViewProjectionMatrix()));
+		//camera_cb.view = float4x4();
+		//camera_cb.projection = float4x4();
+		sceneCB.cameraCB = camera_cb;
 		sceneCB.instanceDataAddress = m_GpuScene->getInstanceAddress();
 		sceneCB.sceneStaticBufferSRV = m_GpuScene->getSceneStaticBufferSRV()->getDescriptorArrayIndex();
 		sceneCB.sceneConstantBufferSRV = m_GpuScene->getSceneConstantSRV()->getDescriptorArrayIndex();;

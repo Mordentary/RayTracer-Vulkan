@@ -43,8 +43,8 @@ namespace SE {
 	void Window::onUpdate() {
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
-			// Handle window-specific events internally
-			if (event.type == SDL_QUIT) {
+			if (event.type == SDL_QUIT)
+			{
 				m_Running = false;
 			}
 			else if (event.type == SDL_WINDOWEVENT) {
@@ -67,7 +67,7 @@ namespace SE {
 			}
 			// Call the general event callback
 			if (m_EventCallback) {
-				m_EventCallback(event);
+				m_EventCallback(event, SDL_GetKeyboardState(NULL));
 			}
 		}
 	}

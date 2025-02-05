@@ -2,7 +2,7 @@
 
 #include "SingularityEngine_export.h"
 #include <unordered_map>
-#include <camera.h>
+#include <scene/camera.hpp>
 #include <engine_core.h>
 #include <RHI\swapchain.hpp>
 #include "window.hpp"
@@ -31,9 +31,10 @@ namespace SE
 
 		const std::string& getAssetPath() const { return m_AssetPath; }
 		const std::string& getShaderPath() const { return m_ShaderPath; }
-		Window& getWindow() const { return *m_Window; }
-		Editor& getEditor() const { return *m_Editor; }
-		Renderer& getRenderer() const { return *m_Renderer; }
+		Window& getWindow() { return *m_Window; }
+		Editor& getEditor() { return *m_Editor; }
+		Renderer& getRenderer() { return *m_Renderer; }
+		Camera& getCamera() { return *m_Camera; }
 	private:
 		Engine() = default;
 		~Engine() = default;
@@ -42,7 +43,7 @@ namespace SE
 		Engine(Engine&&) = delete;
 		Engine& operator=(const Engine&) = delete;
 		Engine& operator=(Engine&&) = delete;
-		void handleEvent(const SDL_Event& event);
+		void handleEvent(const SDL_Event& event, const Uint8* state);
 	private:
 		Scoped<Renderer> m_Renderer;
 		Scoped<Editor> m_Editor;
@@ -50,8 +51,8 @@ namespace SE
 		bool m_StopRendering = false;
 
 		//World
+		Scoped<Camera> m_Camera;
 		std::unordered_map<std::string, Shared<LoadedGLTF>> m_LoadedNodes;
-		Shared<Camera> m_Camera;
 		std::string m_AssetPath;
 		std::string m_ShaderPath;
 	private:

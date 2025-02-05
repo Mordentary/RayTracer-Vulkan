@@ -8,7 +8,7 @@
 namespace SE {
 	class Window {
 	public:
-		using EventCallbackFn = std::function<void(const SDL_Event&)>;
+		using EventCallbackFn = std::function<void(const SDL_Event&, const Uint8* state)>;
 
 		Window(const std::string& title, uint32_t width, uint32_t height);
 		~Window();
@@ -35,4 +35,4 @@ namespace SE {
 
 		EventCallbackFn m_EventCallback;
 	};
-} // namespace SE
+}

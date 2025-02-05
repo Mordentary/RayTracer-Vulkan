@@ -143,7 +143,8 @@ namespace SE {
 	private:
 		Timer() : m_MaxFrameHistory(300), m_AverageWindow(60),
 			m_MinFrameTime(std::numeric_limits<double>::max()),
-			m_MaxFrameTime(0.0), m_FrameTimeSum(0.0) {}
+			m_MaxFrameTime(0.0), m_FrameTimeSum(0.0) {
+		}
 
 		Timer(const Timer&) = delete;
 		Timer& operator=(const Timer&) = delete;
